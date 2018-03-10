@@ -64,7 +64,6 @@ class NodeTest(unittest.TestCase):
             node = Node(list(new_x), list(new_y))
             self.perform_tests(new_x, new_y, node, noise > 0)
             for xx, yy in zip(x[limit:], y[limit:]):
-                print('bla')
                 node.add(xx, yy)
                 new_x.append(xx)
                 new_y.append(yy)

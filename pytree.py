@@ -30,10 +30,14 @@ class IncrementalStat:
 
     @property
     def mean(self):
+        if len(self) == 0:
+            return 0
         return self.K + self.Ex/len(self)
 
     @property
     def var(self):
+        if len(self) == 0:
+            return 0
         return (self.Ex2 - (self.Ex**2)/len(self)) / len(self)
 
     @property
@@ -93,9 +97,10 @@ class Node:
         return self.corr**2
 
     def add(self, x, y):
+        dx = x - self.mean_x
         self.x.add(x)
         self.y.add(y)
-        self.cov_sum.add((x-self.mean_x)*(y-self.mean_y))
+        self.cov_sum.add(dx*(y - self.mean_y))
 
     def pop(self):
         x = self.x.last()
