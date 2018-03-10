@@ -54,7 +54,7 @@ class NodeTest(unittest.TestCase):
             self.perform_tests(x, y, node, noise > 0)
 
 
-    def test_add(self):
+    def test_add_remove(self):
         for noise in [0, 1, 2, 4, 8]:
             x = [d[0] for d in self.data]
             y = [d[1] + random.gauss(0, noise) for d in self.data]
@@ -67,6 +67,11 @@ class NodeTest(unittest.TestCase):
                 node.add(xx, yy)
                 new_x.append(xx)
                 new_y.append(yy)
+                self.perform_tests(new_x, new_y, node, noise > 0)
+            for _ in range(2*limit):
+                xx, yy = node.pop()
+                self.assertEqual(xx, new_x.pop())
+                self.assertEqual(yy, new_y.pop())
                 self.perform_tests(new_x, new_y, node, noise > 0)
 
 

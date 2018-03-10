@@ -58,7 +58,7 @@ class Node:
         return len(self.x)
 
     def __str__(self):
-        return 'y ~ %3.fx + %.3f | R^2 = %.3f' % (self.beta, self.alpha, self.rsquared)
+        return 'y ~ %.3fx + %.3f | R^2 = %.3f' % (self.beta, self.alpha, self.rsquared)
 
     @property
     def mean_x(self):
@@ -97,14 +97,15 @@ class Node:
         return self.corr**2
 
     def add(self, x, y):
+        '''For the covariance, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online.'''
         dx = x - self.mean_x
         self.x.add(x)
         self.y.add(y)
         self.cov_sum.add(dx*(y - self.mean_y))
 
     def pop(self):
-        x = self.x.last()
-        y = self.y.last()
+        x = self.x.last
+        y = self.y.last
         self.cov_sum.pop()
         self.x.pop()
         self.y.pop()
