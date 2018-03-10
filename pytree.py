@@ -104,9 +104,5 @@ class Node:
         self.cov_sum.add(dx*(y - self.mean_y))
 
     def pop(self):
-        x = self.x.last
-        y = self.y.last
         self.cov_sum.pop()
-        self.x.pop()
-        self.y.pop()
-        return x, y
+        return self.x.pop(), self.y.pop()
