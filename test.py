@@ -19,6 +19,8 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertAlmostEqual(numpy.mean(values), stats.mean)
             self.assertAlmostEqual(numpy.var(values),  stats.var)
             self.assertAlmostEqual(numpy.std(values),  stats.std)
+            self.assertAlmostEqual(sum(values),        stats.sum)
+            self.assertAlmostEqual(sum([val**2 for val in values]), stats.sum_square)
 
 
 class NodeTest(unittest.TestCase):

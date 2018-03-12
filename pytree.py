@@ -44,6 +44,14 @@ class IncrementalStat:
     def std(self):
         return self.var ** (1/2)
 
+    @property
+    def sum(self):
+        return self.Ex + self.K*len(self)
+
+    @property
+    def sum_square(self):
+        return self.Ex2 + 2*self.K*self.sum - len(self)*self.K**2
+
 class Node:
     def __init__(self, x, y):
         '''Assume the values in x are sorted in increasing order.'''
