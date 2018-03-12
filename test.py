@@ -47,6 +47,10 @@ class NodeTest(unittest.TestCase):
         self.assertAlmostEqual(node.beta,     self.coeff,                 delta=delta)
         self.assertAlmostEqual(node.alpha,    self.intercept,             delta=delta)
         self.assertAlmostEqual(node.rsquared, 1,                          delta=delta)
+        MSE = 0
+        for xx, yy in zip(x, y):
+            MSE += (yy - node.predict(xx))**2
+        self.assertAlmostEqual(node.MSE, MSE/len(x))
 
     def test_init(self):
         for noise in [0, 1, 2, 4, 8]:

@@ -59,6 +59,7 @@ class Node:
         self.x = IncrementalStat()
         self.y = IncrementalStat()
         self.cov_sum = IncrementalStat()
+        self.xy = IncrementalStat()
         for xx, yy in zip(x, y):
             self.add(xx, yy)
 
@@ -104,13 +105,32 @@ class Node:
     def rsquared(self):
         return self.corr**2
 
+    @property
+    def MSE(self):
+        a  = self.beta
+        b  = self.alpha # TODO change the names alpha/beta, it is misleading
+        x  = self.x.sum
+        y  = self.y.sum
+        x2 = self.x.sum_square
+        y2 = self.y.sum_square
+        xy = self.xy.sum
+        return (+y2\
+                -2*(a*xy + b*y)\
+                +(a**2*x2 + 2*a*b*x + len(self)*b**2)
+        )/len(self)
+
+    def predict(self, x):
+        return self.beta*x + self.alpha
+
     def add(self, x, y):
         '''For the covariance, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online.'''
         dx = x - self.mean_x
         self.x.add(x)
         self.y.add(y)
+        self.xy.add(x*y)
         self.cov_sum.add(dx*(y - self.mean_y))
 
     def pop(self):
         self.cov_sum.pop()
+        self.xy.pop()
         return self.x.pop(), self.y.pop()
