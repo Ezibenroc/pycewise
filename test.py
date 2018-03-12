@@ -44,9 +44,9 @@ class NodeTest(unittest.TestCase):
         self.assertAlmostEqual(node.corr,     numpy.corrcoef(x, y)[1,0],  delta=delta)
         if noisy:
             delta = max(*x, *y)/100 # TODO better delta ?
-        self.assertAlmostEqual(node.beta,     self.coeff,                 delta=delta)
-        self.assertAlmostEqual(node.alpha,    self.intercept,             delta=delta)
-        self.assertAlmostEqual(node.rsquared, 1,                          delta=delta)
+        self.assertAlmostEqual(node.coeff,     self.coeff,      delta=delta)
+        self.assertAlmostEqual(node.intercept, self.intercept,  delta=delta)
+        self.assertAlmostEqual(node.rsquared, 1,                delta=delta)
         MSE = 0
         for xx, yy in zip(x, y):
             MSE += (yy - node.predict(xx))**2

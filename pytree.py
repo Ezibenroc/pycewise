@@ -67,7 +67,7 @@ class Node:
         return len(self.x)
 
     def __str__(self):
-        return 'y ~ %.3fx + %.3f | R^2 = %.3f' % (self.beta, self.alpha, self.rsquared)
+        return 'y ~ %.3fx + %.3f | R^2 = %.3f' % (self.coeff, self.intercept, self.rsquared)
 
     @property
     def mean_x(self):
@@ -94,12 +94,12 @@ class Node:
         return self.cov / (self.std_x * self.std_y)
 
     @property
-    def beta(self):
+    def coeff(self):
         return self.corr * self.std_y / self.std_x
 
     @property
-    def alpha(self):
-        return self.mean_y - self.beta*self.mean_x
+    def intercept(self):
+        return self.mean_y - self.coeff*self.mean_x
 
     @property
     def rsquared(self):
@@ -107,8 +107,8 @@ class Node:
 
     @property
     def MSE(self):
-        a  = self.beta
-        b  = self.alpha # TODO change the names alpha/beta, it is misleading
+        a  = self.coeff
+        b  = self.intercept
         x  = self.x.sum
         y  = self.y.sum
         x2 = self.x.sum_square
@@ -120,7 +120,7 @@ class Node:
         )/len(self)
 
     def predict(self, x):
-        return self.beta*x + self.alpha
+        return self.coeff*x + self.intercept
 
     def add(self, x, y):
         '''For the covariance, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online.'''
