@@ -1,7 +1,7 @@
 import unittest
 import random
 import numpy
-from pytree import Node, IncrementalStat
+from pytree import Leaf, IncrementalStat
 
 class IncrementalStatTest(unittest.TestCase):
     def test_basic(self):
@@ -23,7 +23,7 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertAlmostEqual(sum([val**2 for val in values]), stats.sum_square)
 
 
-class NodeTest(unittest.TestCase):
+class LeafTest(unittest.TestCase):
     def setUp(self):
         self.coeff = random.uniform(0, 100)
         self.intercept = random.uniform(0, 100)
@@ -56,7 +56,7 @@ class NodeTest(unittest.TestCase):
         for noise in [0, 1, 2, 4, 8]:
             x = [d[0] for d in self.data]
             y = [d[1] + random.gauss(0, noise) for d in self.data]
-            node = Node(x, y)
+            node = Leaf(x, y)
             self.perform_tests(x, y, node, noise > 0)
 
 
@@ -67,7 +67,7 @@ class NodeTest(unittest.TestCase):
             limit = self.size // 3
             new_x = x[:limit]
             new_y = y[:limit]
-            node = Node(list(new_x), list(new_y))
+            node = Leaf(list(new_x), list(new_y))
             self.perform_tests(new_x, new_y, node, noise > 0)
             for xx, yy in zip(x[limit:], y[limit:]):
                 node.add(xx, yy)

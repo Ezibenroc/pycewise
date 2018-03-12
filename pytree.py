@@ -52,7 +52,7 @@ class IncrementalStat:
     def sum_square(self):
         return self.Ex2 + 2*self.K*self.sum - len(self)*self.K**2
 
-class Node:
+class Leaf:
     def __init__(self, x, y):
         '''Assume the values in x are sorted in increasing order.'''
         assert len(x) == len(y)
@@ -67,7 +67,7 @@ class Node:
         return len(self.x)
 
     def __str__(self):
-        return 'y ~ %.3fx + %.3f | R^2 = %.3f' % (self.coeff, self.intercept, self.rsquared)
+        return 'y ~ %.3fx + %.3f' % (self.coeff, self.intercept)
 
     @property
     def mean_x(self):
@@ -119,6 +119,10 @@ class Node:
                 +(a**2*x2 + 2*a*b*x + len(self)*b**2)
         )/len(self)
 
+    @property
+    def error(self):
+        return self.MSE ** (1/2)
+
     def predict(self, x):
         return self.coeff*x + self.intercept
 
@@ -134,3 +138,41 @@ class Node:
         self.cov_sum.pop()
         self.xy.pop()
         return self.x.pop(), self.y.pop()
+
+class Node:
+    STR_LJUST = 30
+    def __init__(self, x, y):
+        '''Assume the values in x are sorted in increasing order.'''
+        assert len(x) == len(y)
+        self.left = Leaf(x, y)
+        self.right = Leaf([], [])
+
+    def __len__(self):
+        return len(self.left) + len(self.right)
+
+    @property
+    def error(self):
+        return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
+
+    def left_to_right(self):
+        x, y = self.left.pop()
+        self.right.add(x, y)
+
+    def right_to_left(self):
+        x, y = self.right.pop()
+        self.left.add(x, y)
+
+    @property
+    def split(self):
+        return self.left.x.last
+
+    @staticmethod
+    def tabulate(string):
+        return '\n'.join('── ' + s for s in string.split('\n'))
+
+    def __str__(self):
+        split = 'x ≤ %.3f?' % self.split
+        split     = '%s| error = %.3f' % (split.ljust(self.STR_LJUST+1), self.error)
+        left_str  = '%s| error = %.3f' % (self.tabulate(str(self.left)).ljust(self.STR_LJUST), self.left.error)
+        right_str = '%s| error = %.3f' % (self.tabulate(str(self.right)).ljust(self.STR_LJUST), self.right.error)
+        return '%s\n└%s\n└%s' % (split, left_str, right_str)
