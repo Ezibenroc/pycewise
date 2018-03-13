@@ -1,4 +1,5 @@
 import numpy
+from copy import deepcopy
 
 class IncrementalStat:
     '''See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Computing_shifted_data'''
@@ -71,6 +72,8 @@ class Leaf:
         return len(self.x)
 
     def __str__(self):
+        if len(self) <= 1:
+            return '😢'
         return 'y ~ %.3fx + %.3f' % (self.coeff, self.intercept)
 
     @property
@@ -133,7 +136,12 @@ class Leaf:
 
     @property
     def error(self):
-        return self.MSE ** (1/2)
+        if len(self) <= 1:
+            return float('inf')
+        if self.MSE < 0:
+            return 0
+        else:
+            return self.MSE** (1/2)
 
     def predict(self, x):
         return self.coeff*x + self.intercept
@@ -176,6 +184,8 @@ class Node:
 
     @property
     def error(self):
+        if len(self.left) <= 1 or len(self.right) <= 1:
+            return float('inf')
         return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
 
     def left_to_right(self):
@@ -211,3 +221,54 @@ class Node:
         right_str = self.tabulate(right_str)
 
         return '%s\n%s\n%s' % (split, left_str, right_str)
+
+    def compute_best_fit(self):
+        if len(self.right) == 0:
+            nosplit = deepcopy(self.left)
+            left_to_right = True
+        else:
+            assert len(self.left) == 0
+            nosplit = deepcopy(self.right)
+            left_to_right = False
+        lowest_error  = self.error
+        lowest_index  = 0
+        for i in range(len(self)-1):
+            if left_to_right:
+                self.left_to_right()
+            else:
+                self.right_to_left()
+            if self.error < lowest_error:
+                lowest_error = self.error
+                lowest_index = i
+        if lowest_error + 1e-5 < nosplit.error: # TODO epsilon?
+            while i > lowest_index:
+                i -= 1
+                if left_to_right:
+                    self.right_to_left()
+                else:
+                    self.left_to_right()
+            assert abs(lowest_error - self.error) < 1e-3
+            self.left = Node(self.left, Leaf([], [])).compute_best_fit()
+            self.right = Node(Leaf([], []), self.right).compute_best_fit()
+            return self
+        else:
+            return nosplit
+
+    def predict(self, x):
+        raise NotImplementedError()
+
+def compute_regression(x, y=None):
+    '''Compute a segmented linear regression.
+    The data can be given either as a tuple of two lists, or a list of tuples (each one of size 2).
+    The first values represent the x, the second values represent the y.
+    '''
+    if y is not None:
+        assert len(x) == len(y)
+        dataset = list(zip(x, y))
+    else:
+        dataset = x
+    assert all([len(d) == 2 for d in dataset])
+    dataset = sorted(dataset)
+    x = [d[0] for d in dataset]
+    y = [d[1] for d in dataset]
+    return Node(Leaf(x, y), Leaf([], [])).compute_best_fit()

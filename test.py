@@ -1,7 +1,7 @@
 import unittest
 import random
 import numpy
-from pytree import Leaf, IncrementalStat
+from pytree import Node, Leaf, IncrementalStat, compute_regression
 
 class IncrementalStatTest(unittest.TestCase):
     def test_basic(self):
@@ -80,6 +80,47 @@ class LeafTest(unittest.TestCase):
                 self.assertEqual(yy, new_y.pop())
                 self.perform_tests(new_x, new_y, node, noise > 0)
 
+class NodeTest(unittest.TestCase):
+
+    @staticmethod
+    def generate_dataset(intercept, coeff, size, min_x, max_x):
+        dataset = []
+        for _ in range(size):
+            x = random.uniform(min_x, max_x)
+            y = x*coeff + intercept
+            dataset.append((x, y))
+        return dataset
+
+    def test_nosplit(self):
+        intercept = random.uniform(0, 100)
+        coeff = random.uniform(0, 100)
+        dataset = self.generate_dataset(intercept=intercept, coeff=coeff, size=50, min_x=0, max_x=100)
+        reg = compute_regression(dataset)
+        self.assertIsInstance(reg, Leaf)
+        self.assertAlmostEqual(reg.intercept, intercept)
+        self.assertAlmostEqual(reg.coeff, coeff)
+        self.assertAlmostEqual(reg.error, 0)
+
+    def test_singlesplit(self):
+        intercept_1 = random.uniform(0, 100)
+        coeff_1 = random.uniform(0, 100)
+        intercept_2 = random.uniform(0, 100)
+        coeff_2 = random.uniform(0, 100)
+        split = random.uniform(30, 60)
+        dataset1 =  self.generate_dataset(intercept=intercept_1, coeff=coeff_1, size=50, min_x=0, max_x=split)
+        dataset2 = self.generate_dataset(intercept=intercept_2, coeff=coeff_2, size=50, min_x=split, max_x=100)
+        dataset = dataset1 + dataset2
+        random.shuffle(dataset)
+        reg = compute_regression(dataset)
+        self.assertIsInstance(reg, Node)
+        self.assertAlmostEqual(reg.error, 0, delta=1e-4)
+        self.assertIsInstance(reg.left, Leaf)
+        self.assertAlmostEqual(reg.left.intercept, intercept_1)
+        self.assertAlmostEqual(reg.left.coeff, coeff_1)
+        self.assertIsInstance(reg.right, Leaf)
+        self.assertAlmostEqual(reg.right.intercept, intercept_2)
+        self.assertAlmostEqual(reg.right.coeff, coeff_2)
+        self.assertEqual(reg.split, max(dataset1)[0])
 
 if __name__ == "__main__":
     unittest.main()
