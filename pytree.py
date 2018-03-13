@@ -22,6 +22,10 @@ class IncrementalStat:
     def last(self):
         return self.values[-1]
 
+    @property
+    def first(self):
+        return self.values[0]
+
     def pop(self):
         val = self.values.pop()
         self.Ex  -= val - self.K
@@ -68,6 +72,14 @@ class Leaf:
 
     def __str__(self):
         return 'y ~ %.3fx + %.3f' % (self.coeff, self.intercept)
+
+    @property
+    def first(self):
+        return self.x.first
+
+    @property
+    def last(self):
+        return self.x.last
 
     @property
     def mean_x(self):
@@ -141,14 +153,26 @@ class Leaf:
 
 class Node:
     STR_LJUST = 30
-    def __init__(self, x, y):
-        '''Assume the values in x are sorted in increasing order.'''
-        assert len(x) == len(y)
-        self.left = Leaf(x, y)
-        self.right = Leaf([], [])
+    def __init__(self, left_node, right_node):
+        '''Assumptions:
+             - all the x values in left_node are lower than the x values in right_node,
+             - values in left_node  are sorted in increasing order (w.r.t. x),
+             - values in right_node are sorted in decreasing order (w.r.t. x),
+             - left_node.last  is the largest  x value in left_node,
+             - right_node.last is the smallest x value in right_node.'''
+        self.left = left_node
+        self.right = right_node
 
     def __len__(self):
         return len(self.left) + len(self.right)
+
+    @property
+    def first(self):
+        return self.left.first
+
+    @property
+    def last(self):
+        return self.right.first
 
     @property
     def error(self):
@@ -164,15 +188,26 @@ class Node:
 
     @property
     def split(self):
-        return self.left.x.last
+        return self.left.last
 
     @staticmethod
-    def tabulate(string):
-        return '\n'.join('── ' + s for s in string.split('\n'))
+    def tabulate(string, pad='    ', except_first=False):
+        substrings = string.split('\n')
+        for i, s in enumerate(substrings):
+            if i > 0 or not except_first:
+                substrings[i] = pad + s
+        return '\n'.join(substrings)
 
     def __str__(self):
         split = 'x ≤ %.3f?' % self.split
-        split     = '%s| error = %.3f' % (split.ljust(self.STR_LJUST+1), self.error)
-        left_str  = '%s| error = %.3f' % (self.tabulate(str(self.left)).ljust(self.STR_LJUST), self.left.error)
-        right_str = '%s| error = %.3f' % (self.tabulate(str(self.right)).ljust(self.STR_LJUST), self.right.error)
-        return '%s\n└%s\n└%s' % (split, left_str, right_str)
+        left_str = str(self.left)
+        left_str = self.tabulate(left_str, '│', True)
+        left_str = '└──' + left_str
+        left_str = self.tabulate(left_str)
+
+        right_str = str(self.right)
+        right_str = self.tabulate(right_str, ' ', True)
+        right_str = '└──' + right_str
+        right_str = self.tabulate(right_str)
+
+        return '%s\n%s\n%s' % (split, left_str, right_str)
