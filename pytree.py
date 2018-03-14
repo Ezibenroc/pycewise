@@ -7,7 +7,10 @@ except ImportError:
     sys.stderr.write('WARNING: no module statsmodels, the tree will not be simplified.')
 
 class IncrementalStat:
-    '''See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Computing_shifted_data'''
+    '''Represent a collection of numbers. Numbers can be added and removed (see methods add and pop).
+    Several aggregated values (e.g., mean and variance) can be obtained in constant time.
+    For the algorithms, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance'''
+
     def __init__(self):
         self.values = []
         self.K = 0
@@ -18,6 +21,7 @@ class IncrementalStat:
         return len(self.values)
 
     def add(self, val):
+        '''Add a new element to the collection.'''
         if len(self) == 0:
             self.K = val
         self.values.append(val)
@@ -26,13 +30,16 @@ class IncrementalStat:
 
     @property
     def last(self):
+        '''Return the last element that was added to the collection.'''
         return self.values[-1]
 
     @property
     def first(self):
+        '''Return the first element that was added to the collection.'''
         return self.values[0]
 
     def pop(self):
+        '''Remove the last element that was added to the collection and return it.'''
         val = self.values.pop()
         self.Ex  -= val - self.K
         self.Ex2 -= (val - self.K)**2
@@ -40,29 +47,40 @@ class IncrementalStat:
 
     @property
     def mean(self):
+        '''Return the mean of all the elements of the collection.'''
         if len(self) == 0:
             return 0
         return self.K + self.Ex/len(self)
 
     @property
     def var(self):
+        '''Return the variance of all the elements of the collection.'''
         if len(self) == 0:
             return 0
         return (self.Ex2 - (self.Ex**2)/len(self)) / len(self)
 
     @property
     def std(self):
+        '''Return the standard deviation of all the elements of the collection.'''
         return self.var ** (1/2)
 
     @property
     def sum(self):
+        '''Return the sum of all the elements of the collection.'''
         return self.Ex + self.K*len(self)
 
     @property
     def sum_square(self):
+        '''Return the sum of all the squares of the elements of the collection.'''
         return self.Ex2 + 2*self.K*self.sum - len(self)*self.K**2
 
 class Leaf:
+    '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
+    Pairs can be added or removed (see methods add/pop) to the collection in any order.
+    Several aggregated values can be obtained in constant time (e.g. covariance, coefficient and intercept
+    of the linear regression).
+    '''
+
     def __init__(self, x, y):
         assert len(x) == len(y)
         self.x = IncrementalStat()
@@ -91,6 +109,13 @@ class Leaf:
         return self.__class__(x1+list(reversed(x2)), y1+list(reversed(y2)))
 
     def __eq__(self, other):
+        '''Return True if the two Leaf instances are not *significantly* different.
+        They are significantly different if (at least) one of the conditions holds:
+            - One and only one of the two intercepts   is significant.
+            - One and only one of the two coefficients is significant.
+            - Both intercepts   are significant and their confidence intervals do not overlap.
+            - Both coefficients are significant and their confidence intervals do not overlap.
+        '''
         if not isinstance(other, self.__class__):
             return False
         if len(self) <= 5 or len(other) <= 5: # too few points anyway...
@@ -118,50 +143,63 @@ class Leaf:
 
     @property
     def first(self):
+        '''Return the first element x that was added to the collection.'''
         return self.x.first
 
     @property
     def last(self):
+        '''Return the last element x that was added to the collection.'''
         return self.x.last
 
     @property
     def mean_x(self):
+        '''Return the mean of the elements x of the collection.'''
         return self.x.mean
 
     @property
     def mean_y(self):
+        '''Return the mean of the elements y of the collection.'''
         return self.y.mean
 
     @property
     def std_x(self):
+        '''Return the standard deviation of the elements x of the collection.'''
         return self.x.std
 
     @property
     def std_y(self):
+        '''Return the standard deviation of the elements y of the collection.'''
         return self.y.std
 
     @property
     def cov(self):
+        '''Return the covariance between the elements x and the elements y.'''
         return self.cov_sum.mean
 
     @property
     def corr(self):
+        '''Return the correlation coefficient between the elements x and the elements y.'''
         return self.cov / (self.std_x * self.std_y)
 
     @property
     def coeff(self):
+        '''Return the coefficient α of the linear regression y = αx + β.'''
         return self.corr * self.std_y / self.std_x
 
     @property
     def intercept(self):
+        '''Return the intercept β of the linear regression y = αx + β.'''
         return self.mean_y - self.coeff*self.mean_x
 
     @property
     def rsquared(self):
+        '''Return the value R² of the linear regression y = αx + β.'''
         return self.corr**2
 
     @property
     def MSE(self):
+        '''Return the mean squared error (MSE) of the linear regression y = αx + β.
+        See https://stats.stackexchange.com/a/333431/196336'''
         a  = self.coeff
         b  = self.intercept
         x  = self.x.sum
@@ -176,6 +214,7 @@ class Leaf:
 
     @property
     def error(self):
+        '''Return the square root of the MSE.'''
         if len(self) <= 1:
             return float('inf')
         if self.MSE < 0:
@@ -184,22 +223,26 @@ class Leaf:
             return self.MSE** (1/2)
 
     def predict(self, x):
+        '''Return a prediction of y for the variable x by using the linear regression y = αx + β.'''
         return self.coeff*x + self.intercept
 
     def add(self, x, y):
-        '''For the covariance, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online.'''
+        '''Add the pair (x, y) to the collection.'''
         dx = x - self.mean_x
         self.x.add(x)
         self.y.add(y)
         self.xy.add(x*y)
+        # For the covariance, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online.
         self.cov_sum.add(dx*(y - self.mean_y))
 
     def pop(self):
+        '''Remove and return the last pair (x, y) that was added to the collection.'''
         self.cov_sum.pop()
         self.xy.pop()
         return self.x.pop(), self.y.pop()
 
     def simplify(self):
+        '''Does nothing.'''
         return self # nothing to do
 
 class Node:
@@ -220,32 +263,39 @@ class Node:
 
     @property
     def first(self):
+        '''Return the smallest element of the node (if the assumptions are satisfied.)'''
         return self.left.first
 
     @property
     def last(self):
+        '''Return the largest element of the node (if the assumptions are satisfied.)'''
         return self.right.first
 
     @property
     def error(self):
+        '''Return the weighted error of the node.'''
         if len(self.left) <= 1 or len(self.right) <= 1:
             return float('inf')
         return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
 
     def left_to_right(self):
+        '''Move the last element of the left node to the right node.'''
         x, y = self.left.pop()
         self.right.add(x, y)
 
     def right_to_left(self):
+        '''Move the last element of the right node to the left node.'''
         x, y = self.right.pop()
         self.left.add(x, y)
 
     @property
     def split(self):
+        '''Return the current split (i.e., the largest element of the left node).'''
         return self.left.last
 
     @staticmethod
     def tabulate(string, pad='    ', except_first=False):
+        '''Used for the string representation.'''
         substrings = string.split('\n')
         for i, s in enumerate(substrings):
             if i > 0 or not except_first:
@@ -270,6 +320,9 @@ class Node:
         return str(self)
 
     def compute_best_fit(self):
+        '''Compute the best fit for the dataset of this node. This can either be:
+            - a leaf, representing a single linear regression,
+            - two nodes with a split, representing a segmented linear regressions.'''
         if len(self.right) == 0:
             nosplit = deepcopy(self.left)
             left_to_right = True
@@ -306,12 +359,16 @@ class Node:
             return nosplit
 
     def predict(self, x):
+        '''Return a prediction of y for the variable x by using the piecewise linear regression.'''
         if x <= self.split:
             return self.left.predict(x)
         else:
             return self.right.predict(x)
 
     def simplify(self):
+        '''Recursively simplify the tree (if possible).
+        If two leaves of a same node are considered equal (see Leaf.__eq__ method), then they are merged:
+        this node becomes a Leaf containing the union of the two leaves.'''
         left = self.left.simplify()
         right = self.right.simplify()
         if type(self.right) != type(right): # keeping the property that right leaves are in reverse order
