@@ -255,7 +255,10 @@ class Node:
             return nosplit
 
     def predict(self, x):
-        raise NotImplementedError()
+        if x <= self.split:
+            return self.left.predict(x)
+        else:
+            return self.right.predict(x)
 
 def compute_regression(x, y=None):
     '''Compute a segmented linear regression.
