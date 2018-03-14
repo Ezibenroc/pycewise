@@ -1,5 +1,10 @@
 from collections import namedtuple
 from copy import deepcopy
+try:
+    import statsmodels.formula.api as statsmodels
+except ImportError:
+    statsmodels = None
+    sys.stderr.write('WARNING: no module statsmodels, the tree will not be simplified.')
 
 class IncrementalStat:
     '''See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Computing_shifted_data'''
@@ -59,7 +64,6 @@ class IncrementalStat:
 
 class Leaf:
     def __init__(self, x, y):
-        '''Assume the values in x are sorted in increasing order.'''
         assert len(x) == len(y)
         self.x = IncrementalStat()
         self.y = IncrementalStat()
@@ -73,8 +77,44 @@ class Leaf:
 
     def __str__(self):
         if len(self) <= 1:
-            return '😢'
+            return '⊥'
         return 'y ~ %.3fx + %.3f' % (self.coeff, self.intercept)
+
+    def __repr__(self):
+        return str(self)
+
+    def __add__(self, other):
+        x1 = self.x.values
+        y1 = self.y.values
+        x2 = other.x.values
+        y2 = other.y.values
+        return self.__class__(x1+list(reversed(x2)), y1+list(reversed(y2)))
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        if len(self) <= 5 or len(other) <= 5: # too few points anyway...
+            return True
+        pvalues_thresh = 1e-3
+        reg1 = statsmodels.ols(formula='y~x', data={'x': self.x.values,  'y': self.y.values }).fit()
+        confint1 = reg1.conf_int(alpha=0.05, cols=None)
+        reg2 = statsmodels.ols(formula='y~x', data={'x': other.x.values, 'y': other.y.values}).fit()
+        confint2 = reg2.conf_int(alpha=0.05, cols=None)
+        signif_intercept1 = reg1.pvalues.Intercept < pvalues_thresh
+        signif_intercept2 = reg2.pvalues.Intercept < pvalues_thresh
+        signif_slope1 = reg1.pvalues.x < pvalues_thresh
+        signif_slope2 = reg2.pvalues.x < pvalues_thresh
+        if signif_intercept1 and signif_intercept2: # intercept is significant for both
+            if confint1[1].Intercept < confint2[0].Intercept-1e-3 or confint1[0].Intercept-1e-3 > confint2[1].Intercept: # non-overlapping C.I. for intercept
+                return False
+        elif signif_intercept1 or signif_intercept2: # intercept is significant for only one
+            return False
+        if signif_slope1 and signif_slope2: # slope is significant for both
+            if confint1[1].x < confint2[0].x-1e-3 or confint1[0].x-1e-3 > confint2[1].x: # non-overlapping C.I. for slope
+                return False
+        elif signif_slope1 or signif_slope2:
+            return False
+        return True
 
     @property
     def first(self):
@@ -159,6 +199,9 @@ class Leaf:
         self.xy.pop()
         return self.x.pop(), self.y.pop()
 
+    def simplify(self):
+        return self # nothing to do
+
 class Node:
     STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split'])
@@ -223,6 +266,9 @@ class Node:
 
         return '%s\n%s\n%s' % (split, left_str, right_str)
 
+    def __repr__(self):
+        return str(self)
+
     def compute_best_fit(self):
         if len(self.right) == 0:
             nosplit = deepcopy(self.left)
@@ -243,7 +289,7 @@ class Node:
             if self.error < lowest_error:
                 lowest_error = self.error
                 lowest_index = i
-        if lowest_error * 1.5 < nosplit.error: # TODO stopping criteria?
+        if lowest_error * 1.5 < nosplit.error and len(self) > 20: # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
                 if left_to_right:
@@ -265,6 +311,19 @@ class Node:
         else:
             return self.right.predict(x)
 
+    def simplify(self):
+        left = self.left.simplify()
+        right = self.right.simplify()
+        if type(self.right) != type(right): # keeping the property that right leaves are in reverse order
+            right.x.values = list(reversed(right.x.values))
+            right.y.values = list(reversed(right.y.values))
+        if left == right:
+            result = left + right
+        else:
+            result = Node(left, right)
+        result.errors = self.errors
+        return result
+
 def compute_regression(x, y=None):
     '''Compute a segmented linear regression.
     The data can be given either as a tuple of two lists, or a list of tuples (each one of size 2).
@@ -280,4 +339,6 @@ def compute_regression(x, y=None):
     x = [d[0] for d in dataset]
     y = [d[1] for d in dataset]
     reg = Node(Leaf(x, y), Leaf([], [])).compute_best_fit()
+    if statsmodels:
+        reg = reg.simplify()
     return reg

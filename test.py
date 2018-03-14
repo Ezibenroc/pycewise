@@ -3,6 +3,14 @@ import random
 import numpy
 from pytree import Node, Leaf, IncrementalStat, compute_regression
 
+def generate_dataset(intercept, coeff, size, min_x, max_x):
+    dataset = []
+    for _ in range(size):
+        x = random.uniform(min_x, max_x)
+        y = x*coeff + intercept
+        dataset.append((x, y))
+    return dataset
+
 class IncrementalStatTest(unittest.TestCase):
     def test_basic(self):
         size = random.randint(50, 100)
@@ -80,40 +88,75 @@ class LeafTest(unittest.TestCase):
                 self.assertEqual(yy, new_y.pop())
                 self.perform_tests(new_x, new_y, node, noise > 0)
 
-class NodeTest(unittest.TestCase):
+    def test_plus(self):
+        l1 = Leaf(range(10), range(10))
+        l2 = Leaf(range(10, 20), range(10, 20))
+        l = l1 + l2
+        self.assertAlmostEqual(l.intercept, 0)
+        self.assertAlmostEqual(l.coeff, 1)
+        self.assertAlmostEqual(l.MSE, 0)
+        self.assertEqual(l.x.values, l1.x.values + list(reversed(l2.x.values)))
+        self.assertEqual(l.y.values, l1.y.values + list(reversed(l2.y.values)))
 
-    @staticmethod
-    def generate_dataset(intercept, coeff, size, min_x, max_x):
-        dataset = []
-        for _ in range(size):
-            x = random.uniform(min_x, max_x)
-            y = x*coeff + intercept
-            dataset.append((x, y))
-        return dataset
+    def assert_equal_reg(self, dataset1, dataset2):
+        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1])
+        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2])
+        self.assertEqual(leaf1, leaf2)
+
+    def assert_notequal_reg(self, dataset1, dataset2):
+        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1])
+        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2])
+        self.assertNotEqual(leaf1, leaf2)
+
+    def test_eq(self):
+        intercept = random.uniform(0, 100)
+        coeff = random.uniform(0, 100)
+        size = random.randint(50, 100)
+        self.assert_equal_reg(generate_dataset(intercept, coeff, size, 0, 100),
+                              generate_dataset(intercept, coeff, size, 0, 100))
+        self.assert_equal_reg(generate_dataset(intercept, coeff, size, 0, 100),
+                              generate_dataset(intercept, coeff, size, 1000, 2000))
+
+    def test_neq(self):
+        intercept = random.uniform(10, 100)
+        coeff = random.uniform(10, 100)
+        size = random.randint(50, 100)
+        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
+                                 generate_dataset(intercept*2, coeff, size, 0, 100))
+        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
+                                 generate_dataset(intercept, coeff*2, size, 0, 100))
+        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
+                                 generate_dataset(intercept*2, coeff*2, size, 0, 100))
+        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
+                                 generate_dataset(0, coeff, size, 0, 100))
+        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
+                                 generate_dataset(intercept, 0, size, 0, 100))
+
+class NodeTest(unittest.TestCase):
 
     def test_nosplit(self):
         intercept = random.uniform(0, 100)
         coeff = random.uniform(0, 100)
-        dataset = self.generate_dataset(intercept=intercept, coeff=coeff, size=50, min_x=0, max_x=100)
+        dataset = generate_dataset(intercept=intercept, coeff=coeff, size=50, min_x=0, max_x=100)
         reg = compute_regression(dataset)
         self.assertIsInstance(reg, Leaf)
         self.assertAlmostEqual(reg.intercept, intercept)
         self.assertAlmostEqual(reg.coeff, coeff)
-        self.assertAlmostEqual(reg.error, 0)
+        self.assertAlmostEqual(reg.error, 0, delta=1e-3)
 
     def test_singlesplit(self):
-        intercept_1 = random.uniform(0, 100)
-        coeff_1 = random.uniform(0, 100)
-        intercept_2 = random.uniform(0, 100)
-        coeff_2 = random.uniform(0, 100)
+        intercept_1 = random.uniform(0, 50)
+        coeff_1 = random.uniform(0, 50)
+        intercept_2 = random.uniform(50, 100)
+        coeff_2 = random.uniform(50, 100)
         split = random.uniform(30, 60)
-        dataset1 =  self.generate_dataset(intercept=intercept_1, coeff=coeff_1, size=50, min_x=0, max_x=split)
-        dataset2 = self.generate_dataset(intercept=intercept_2, coeff=coeff_2, size=50, min_x=split, max_x=100)
+        dataset1 = generate_dataset(intercept=intercept_1, coeff=coeff_1, size=50, min_x=0, max_x=split)
+        dataset2 = generate_dataset(intercept=intercept_2, coeff=coeff_2, size=50, min_x=split, max_x=100)
         dataset = dataset1 + dataset2
         random.shuffle(dataset)
         reg = compute_regression(dataset)
         self.assertIsInstance(reg, Node)
-        self.assertAlmostEqual(reg.error, 0, delta=1e-4)
+        self.assertAlmostEqual(reg.error, 0, delta=1e-3)
         self.assertIsInstance(reg.left, Leaf)
         self.assertAlmostEqual(reg.left.intercept, intercept_1)
         self.assertAlmostEqual(reg.left.coeff, coeff_1)
