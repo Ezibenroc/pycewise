@@ -1,4 +1,5 @@
 import numpy
+from collections import namedtuple
 from copy import deepcopy
 
 class IncrementalStat:
@@ -161,6 +162,7 @@ class Leaf:
 
 class Node:
     STR_LJUST = 30
+    Error = namedtuple('Error', ['nosplit', 'split'])
     def __init__(self, left_node, right_node):
         '''Assumptions:
              - all the x values in left_node are lower than the x values in right_node,
@@ -232,11 +234,13 @@ class Node:
             left_to_right = False
         lowest_error  = self.error
         lowest_index  = 0
+        new_errors = []
         for i in range(len(self)-1):
             if left_to_right:
                 self.left_to_right()
             else:
                 self.right_to_left()
+            new_errors.append((self.split, self.error))
             if self.error < lowest_error:
                 lowest_error = self.error
                 lowest_index = i
@@ -250,8 +254,10 @@ class Node:
             assert abs(lowest_error - self.error) < 1e-3
             self.left = Node(self.left, Leaf([], [])).compute_best_fit()
             self.right = Node(Leaf([], []), self.right).compute_best_fit()
+            self.errors = self.Error(nosplit.error, new_errors)
             return self
         else:
+            nosplit.errors = self.Error(nosplit.error, new_errors)
             return nosplit
 
     def predict(self, x):
@@ -274,4 +280,5 @@ def compute_regression(x, y=None):
     dataset = sorted(dataset)
     x = [d[0] for d in dataset]
     y = [d[1] for d in dataset]
-    return Node(Leaf(x, y), Leaf([], [])).compute_best_fit()
+    reg = Node(Leaf(x, y), Leaf([], [])).compute_best_fit()
+    return reg
