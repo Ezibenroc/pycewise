@@ -346,7 +346,7 @@ class Node:
             if self.error < lowest_error:
                 lowest_error = self.error
                 lowest_index = i
-        if lowest_error + 1e-3 < nosplit.error and len(self) > 20: # TODO stopping criteria?
+        if lowest_error * 1.5 < nosplit.error and len(self) > 20: # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
                 if left_to_right:
