@@ -342,7 +342,7 @@ class Node:
             if self.error < lowest_error:
                 lowest_error = self.error
                 lowest_index = i
-        if lowest_error * 1.5 < nosplit.error and len(self) > 20: # TODO stopping criteria?
+        if lowest_error + 1e-3 < nosplit.error and len(self) > 20: # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
                 if left_to_right:
@@ -381,7 +381,7 @@ class Node:
         result.errors = self.errors
         return result
 
-def compute_regression(x, y=None):
+def compute_regression(x, y=None, *, simplify=True):
     '''Compute a segmented linear regression.
     The data can be given either as a tuple of two lists, or a list of tuples (each one of size 2).
     The first values represent the x, the second values represent the y.
@@ -396,6 +396,6 @@ def compute_regression(x, y=None):
     x = [d[0] for d in dataset]
     y = [d[1] for d in dataset]
     reg = Node(Leaf(x, y), Leaf([], [])).compute_best_fit()
-    if statsmodels:
+    if statsmodels and simplify:
         reg = reg.simplify()
     return reg
