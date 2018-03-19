@@ -61,6 +61,7 @@ class LeafTest(unittest.TestCase):
         for xx, yy in zip(x, y):
             MSE += (yy - node.predict(xx))**2
         self.assertAlmostEqual(node.MSE, MSE/len(x))
+        self.assertEqual(list(node), list(zip(x, y)))
 
     def test_init(self):
         for noise in [0, 1, 2, 4, 8]:
@@ -146,6 +147,7 @@ class NodeTest(unittest.TestCase):
         self.assertAlmostEqual(reg.coeff, coeff)
         self.assertAlmostEqual(reg.error, 0, delta=1e-3)
         self.assertEqual(reg.breakpoints, [])
+        self.assertEqual(list(reg), list(sorted(dataset)))
 
     def test_singlesplit(self):
         intercept_1 = random.uniform(0, 50)
@@ -168,6 +170,7 @@ class NodeTest(unittest.TestCase):
         self.assertAlmostEqual(reg.right.coeff, coeff_2)
         self.assertEqual(reg.split, max(dataset1)[0])
         self.assertEqual(reg.breakpoints, [reg.split])
+        self.assertEqual(list(reg), list(sorted(dataset)))
 
 if __name__ == "__main__":
     unittest.main()

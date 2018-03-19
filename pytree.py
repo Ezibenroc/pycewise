@@ -1,4 +1,5 @@
 from collections import namedtuple
+import itertools
 from copy import deepcopy
 try:
     import statsmodels.formula.api as statsmodels
@@ -19,6 +20,9 @@ class IncrementalStat:
 
     def __len__(self):
         return len(self.values)
+
+    def __iter__(self):
+        yield from self.values
 
     def add(self, val):
         '''Add a new element to the collection.'''
@@ -100,6 +104,9 @@ class Leaf:
 
     def __repr__(self):
         return str(self)
+
+    def __iter__(self):
+        yield from zip(self.x, self.y)
 
     def __add__(self, other):
         x1 = self.x.values
@@ -265,15 +272,24 @@ class Node:
     def __len__(self):
         return len(self.left) + len(self.right)
 
-    @property
-    def first(self):
-        '''Return the smallest element of the node (if the assumptions are satisfied.)'''
-        return self.left.first
+    def __iter__(self):
+        yield from itertools.chain(self.left, reversed(list(self.right)))
 
     @property
-    def last(self):
+    def min(self):
+        '''Return the smallest element of the node (if the assumptions are satisfied.)'''
+        try:
+            return self.left.min
+        except AttributeError: # left is a leaf
+            return self.left.first
+
+    @property
+    def max(self):
         '''Return the largest element of the node (if the assumptions are satisfied.)'''
-        return self.right.first
+        try:
+            return self.right.max
+        except AttributeError: # right is a leaf
+            return self.right.first
 
     @property
     def error(self):
@@ -295,7 +311,10 @@ class Node:
     @property
     def split(self):
         '''Return the current split (i.e., the largest element of the left node).'''
-        return self.left.last
+        try:
+            return self.left.max
+        except AttributeError: # left is a leaf
+            return self.left.last
 
     @staticmethod
     def tabulate(string, pad='    ', except_first=False):
@@ -323,7 +342,7 @@ class Node:
     def __repr__(self):
         return str(self)
 
-    def compute_best_fit(self):
+    def compute_best_fit(self, depth=0):
         '''Compute the best fit for the dataset of this node. This can either be:
             - a leaf, representing a single linear regression,
             - two nodes with a split, representing a segmented linear regressions.'''
@@ -346,7 +365,7 @@ class Node:
             if self.error < lowest_error:
                 lowest_error = self.error
                 lowest_index = i
-        if lowest_error * 1.5 < nosplit.error and len(self) > 20: # TODO stopping criteria?
+        if lowest_error * 1.1 < nosplit.error and len(self) > 20: # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
                 if left_to_right:
@@ -354,8 +373,10 @@ class Node:
                 else:
                     self.left_to_right()
             assert abs(lowest_error - self.error) < 1e-3
-            self.left = Node(self.left, Leaf([], [])).compute_best_fit()
-            self.right = Node(Leaf([], []), self.right).compute_best_fit()
+            assert(max(self.left)[0] <= self.split)
+            assert(min(self.right)[0] >= self.split)
+            self.left = Node(self.left, Leaf([], [])).compute_best_fit(depth+1)
+            self.right = Node(Leaf([], []), self.right).compute_best_fit(depth+1)
             self.errors = self.Error(nosplit.error, new_errors)
             return self
         else:
@@ -378,8 +399,12 @@ class Node:
         if type(self.right) != type(right): # keeping the property that right leaves are in reverse order
             right.x.values = list(reversed(right.x.values))
             right.y.values = list(reversed(right.y.values))
-        if left == right:
-            result = left + right
+        if isinstance(left, Leaf) and isinstance(right, Leaf):
+            merge = left + right
+            if left == right or merge == left or merge == right:
+                result = merge
+            else:
+                result = Node(left, right)
         else:
             result = Node(left, right)
         result.errors = self.errors
