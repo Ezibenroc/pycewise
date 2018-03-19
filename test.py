@@ -145,6 +145,7 @@ class NodeTest(unittest.TestCase):
         self.assertAlmostEqual(reg.intercept, intercept)
         self.assertAlmostEqual(reg.coeff, coeff)
         self.assertAlmostEqual(reg.error, 0, delta=1e-3)
+        self.assertEqual(reg.breakpoints, [])
 
     def test_singlesplit(self):
         intercept_1 = random.uniform(0, 50)
@@ -166,6 +167,7 @@ class NodeTest(unittest.TestCase):
         self.assertAlmostEqual(reg.right.intercept, intercept_2)
         self.assertAlmostEqual(reg.right.coeff, coeff_2)
         self.assertEqual(reg.split, max(dataset1)[0])
+        self.assertEqual(reg.breakpoints, [reg.split])
 
 if __name__ == "__main__":
     unittest.main()

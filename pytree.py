@@ -245,6 +245,10 @@ class Leaf:
         '''Does nothing.'''
         return self # nothing to do
 
+    @property
+    def breakpoints(self):
+        return [] # no breakpoints
+
 class Node:
     STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split'])
@@ -380,6 +384,10 @@ class Node:
             result = Node(left, right)
         result.errors = self.errors
         return result
+
+    @property
+    def breakpoints(self):
+        return self.left.breakpoints + [self.split] + self.right.breakpoints
 
 def compute_regression(x, y=None, *, simplify=True):
     '''Compute a segmented linear regression.
