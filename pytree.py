@@ -24,6 +24,9 @@ class IncrementalStat:
     def __iter__(self):
         yield from self.values
 
+    def __reviter__(self):
+        yield from reversed(self.values)
+
     def add(self, val):
         '''Add a new element to the collection.'''
         if len(self) == 0:
@@ -107,6 +110,9 @@ class Leaf:
 
     def __iter__(self):
         yield from zip(self.x, self.y)
+
+    def __reviter__(self):
+        yield from zip(self.x.__reviter__(), self.y.__reviter__())
 
     def __add__(self, other):
         x1 = self.x.values
@@ -273,7 +279,10 @@ class Node:
         return len(self.left) + len(self.right)
 
     def __iter__(self):
-        yield from itertools.chain(self.left, reversed(list(self.right)))
+        yield from itertools.chain(self.left, self.right.__reviter__())
+
+    def __reviter__(self):
+        yield from itertools.chain(self.right, self.left.__reviter__())
 
     @property
     def min(self):

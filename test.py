@@ -171,6 +171,7 @@ class NodeTest(unittest.TestCase):
         self.assertEqual(reg.split, max(dataset1)[0])
         self.assertEqual(reg.breakpoints, [reg.split])
         self.assertEqual(list(reg), list(sorted(dataset)))
+        self.assertEqual(list(reg.__reviter__()), list(reversed(sorted(dataset))))
 
 if __name__ == "__main__":
     unittest.main()
