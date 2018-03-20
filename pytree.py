@@ -279,10 +279,10 @@ class Node:
         return len(self.left) + len(self.right)
 
     def __iter__(self):
-        yield from itertools.chain(self.left, self.right.__reviter__())
-
-    def __reviter__(self):
-        yield from itertools.chain(self.right, self.left.__reviter__())
+        try:
+            yield from itertools.chain(self.left, self.right.__reviter__())
+        except AttributeError: # right is *not* a leaf
+            yield from itertools.chain(self.left, self.right)
 
     @property
     def min(self):

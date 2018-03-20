@@ -171,7 +171,20 @@ class NodeTest(unittest.TestCase):
         self.assertEqual(reg.split, max(dataset1)[0])
         self.assertEqual(reg.breakpoints, [reg.split])
         self.assertEqual(list(reg), list(sorted(dataset)))
-        self.assertEqual(list(reg.__reviter__()), list(reversed(sorted(dataset))))
+
+    def test_multiplesplits(self):
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10) for i in range(1, 9)]
+        dataset = sum(all_datasets, [])
+        reg = compute_regression(dataset)
+        print(list(reg)[::5])
+        self.assertEqual(list(reg), list(sorted(dataset)))
+        self.assertEqual(len(reg.breakpoints), 7)
+        for expected, real in zip(range(10, 80, 10), reg.breakpoints):
+            self.assertAlmostEqual(expected, real, delta=2)
+        for x, y in dataset:
+            prediction = reg.predict(x)
+            self.assertAlmostEqual(y, prediction)
+
 
 if __name__ == "__main__":
     unittest.main()
