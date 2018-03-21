@@ -228,7 +228,7 @@ class Leaf:
     @property
     def error(self):
         '''Return the square root of the MSE.'''
-        if len(self) <= 1:
+        if self.std_x == 0:
             return float('inf')
         if self.MSE < 0:
             return 0
