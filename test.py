@@ -176,7 +176,6 @@ class NodeTest(unittest.TestCase):
         all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10) for i in range(1, 9)]
         dataset = sum(all_datasets, [])
         reg = compute_regression(dataset)
-        print(list(reg)[::5])
         self.assertEqual(list(reg), list(sorted(dataset)))
         self.assertEqual(len(reg.breakpoints), 7)
         for expected, real in zip(range(10, 80, 10), reg.breakpoints):
