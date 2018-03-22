@@ -64,7 +64,11 @@ class IncrementalStat:
         '''Return the variance of all the elements of the collection.'''
         if len(self) == 0:
             return 0
-        return (self.Ex2 - (self.Ex**2)/len(self)) / len(self)
+        result = (self.Ex2 - (self.Ex**2)/len(self)) / len(self)
+        if result < 0: # may happen for a very small variance, due to floating point errors
+            assert result > -1e-6
+            return 0
+        return result
 
     @property
     def std(self):
