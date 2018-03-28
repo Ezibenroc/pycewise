@@ -5,6 +5,8 @@ import random
 import numpy
 from pytree import Node, Leaf, IncrementalStat, compute_regression
 
+DEFAULT_MODE='RSS'
+
 def generate_dataset(intercept, coeff, size, min_x, max_x):
     dataset = []
     for _ in range(size):
@@ -67,7 +69,7 @@ class LeafTest(unittest.TestCase):
         for noise in [0, 1, 2, 4, 8]:
             x = [d[0] for d in self.data]
             y = [d[1] + random.gauss(0, noise) for d in self.data]
-            node = Leaf(x, y)
+            node = Leaf(x, y, mode=DEFAULT_MODE)
             self.perform_tests(x, y, node, noise > 0)
 
 
@@ -78,7 +80,7 @@ class LeafTest(unittest.TestCase):
             limit = self.size // 3
             new_x = x[:limit]
             new_y = y[:limit]
-            node = Leaf(list(new_x), list(new_y))
+            node = Leaf(list(new_x), list(new_y), mode=DEFAULT_MODE)
             self.perform_tests(new_x, new_y, node, noise > 0)
             for xx, yy in zip(x[limit:], y[limit:]):
                 node.add(xx, yy)
@@ -92,8 +94,8 @@ class LeafTest(unittest.TestCase):
                 self.perform_tests(new_x, new_y, node, noise > 0)
 
     def test_plus(self):
-        l1 = Leaf(range(10), range(10))
-        l2 = Leaf(range(10, 20), range(10, 20))
+        l1 = Leaf(range(10), range(10), mode=DEFAULT_MODE)
+        l2 = Leaf(range(10, 20), range(10, 20), mode=DEFAULT_MODE)
         l = l1 + l2
         self.assertAlmostEqual(l.intercept, 0)
         self.assertAlmostEqual(l.coeff, 1)
@@ -102,13 +104,13 @@ class LeafTest(unittest.TestCase):
         self.assertEqual(l.y.values, l1.y.values + list(reversed(l2.y.values)))
 
     def assert_equal_reg(self, dataset1, dataset2):
-        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1])
-        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2])
+        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], mode=DEFAULT_MODE)
+        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2], mode=DEFAULT_MODE)
         self.assertEqual(leaf1, leaf2)
 
     def assert_notequal_reg(self, dataset1, dataset2):
-        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1])
-        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2])
+        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], mode=DEFAULT_MODE)
+        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2], mode=DEFAULT_MODE)
         self.assertNotEqual(leaf1, leaf2)
 
     def test_eq(self):
@@ -145,7 +147,7 @@ class NodeTest(unittest.TestCase):
         self.assertIsInstance(reg, Leaf)
         self.assertAlmostEqual(reg.intercept, intercept)
         self.assertAlmostEqual(reg.coeff, coeff)
-        self.assertAlmostEqual(reg.error, 0, delta=1e-3)
+        self.assertAlmostEqual(reg.RSS, 0, delta=1e-3)
         self.assertEqual(reg.breakpoints, [])
         self.assertEqual(list(reg), list(sorted(dataset)))
 
@@ -161,7 +163,7 @@ class NodeTest(unittest.TestCase):
         random.shuffle(dataset)
         reg = compute_regression(dataset)
         self.assertIsInstance(reg, Node)
-        self.assertAlmostEqual(reg.error, 0, delta=1e-3)
+        self.assertAlmostEqual(reg.RSS, 0, delta=1e-3)
         self.assertIsInstance(reg.left, Leaf)
         self.assertAlmostEqual(reg.left.intercept, intercept_1)
         self.assertAlmostEqual(reg.left.coeff, coeff_1)

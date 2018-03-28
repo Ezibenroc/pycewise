@@ -1,5 +1,6 @@
 from collections import namedtuple
 import itertools
+import math
 from copy import deepcopy
 try:
     import statsmodels.formula.api as statsmodels
@@ -85,15 +86,49 @@ class IncrementalStat:
         '''Return the sum of all the squares of the elements of the collection.'''
         return self.Ex2 + 2*self.K*self.sum - len(self)*self.K**2
 
-class Leaf:
+class AbstractReg:
+    '''An abstract class factorizing some common methods of Leaf and Node.
+    '''
+    def __repr__(self):
+        return str(self)
+
+    @property
+    def MSE(self):
+        '''Return the mean squared error (MSE) of the linear regression.'''
+        return self.RSS / len(self)
+
+    def information_criteria(self, param_penalty):
+        try:
+            result =  param_penalty + len(self)*math.log(self.RSS)
+        except ValueError: # negative RSS (due to some floating point errors)
+            result = 0
+        return max(result, param_penalty)
+
+    @property
+    def AIC(self):
+        '''Return the Akaike information criterion (AIC) of the linear regression.
+        See https://en.wikipedia.org/wiki/Akaike_information_criterion#Comparison_with_least_squares'''
+        param_penalty = 2*self.nb_params
+        return self.information_criteria(param_penalty)
+
+    @property
+    def BIC(self):
+        '''Return the bayesian information criterion (BIC) of the linear regression.
+        See https://en.wikipedia.org/wiki/Bayesian_information_criterion#Gaussian_special_case'''
+        param_penalty = math.log(len(self))*self.nb_params
+        return self.information_criteria(param_penalty)
+
+class Leaf(AbstractReg):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
     Pairs can be added or removed (see methods add/pop) to the collection in any order.
     Several aggregated values can be obtained in constant time (e.g. covariance, coefficient and intercept
     of the linear regression).
     '''
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, mode):
         assert len(x) == len(y)
+        assert mode in ('AIC', 'BIC', 'RSS')
+        self.mode = mode
         self.x = IncrementalStat()
         self.y = IncrementalStat()
         self.cov_sum = IncrementalStat()
@@ -109,9 +144,6 @@ class Leaf:
             return '⊥'
         return 'y ~ %.3fx + %.3f' % (self.coeff, self.intercept)
 
-    def __repr__(self):
-        return str(self)
-
     def __iter__(self):
         yield from zip(self.x, self.y)
 
@@ -123,7 +155,7 @@ class Leaf:
         y1 = self.y.values
         x2 = other.x.values
         y2 = other.y.values
-        return self.__class__(x1+list(reversed(x2)), y1+list(reversed(y2)))
+        return self.__class__(x1+list(reversed(x2)), y1+list(reversed(y2)), mode=self.mode)
 
     def __eq__(self, other):
         '''Return True if the two Leaf instances are not *significantly* different.
@@ -214,8 +246,8 @@ class Leaf:
         return self.corr**2
 
     @property
-    def MSE(self):
-        '''Return the mean squared error (MSE) of the linear regression y = αx + β.
+    def RSS(self):
+        '''Return the residual sum of squares (RSS) of the linear regression y = αx + β.
         See https://stats.stackexchange.com/a/333431/196336'''
         a  = self.coeff
         b  = self.intercept
@@ -227,17 +259,27 @@ class Leaf:
         return (+y2\
                 -2*(a*xy + b*y)\
                 +(a**2*x2 + 2*a*b*x + len(self)*b**2)
-        )/len(self)
+        )
+
+    @property
+    def nb_params(self):
+        '''Return the number of parameters of the model.'''
+        return 3 # only three parameters: slope, intercept and standard deviation of the residuals (we assume they follow a normal distribution of mean 0)
 
     @property
     def error(self):
-        '''Return the square root of the MSE.'''
+        '''Return an error, depending on the chosen mode. Lowest is better.'''
         if self.std_x == 0:
             return float('inf')
-        if self.MSE < 0:
-            return 0
-        else:
-            return self.MSE** (1/2)
+        if self.mode == 'AIC':
+            return self.AIC
+        if self.mode == 'BIC':
+            return self.BIC
+        if self.mode == 'RSS':
+            if self.MSE < 0:
+                return 0
+            else:
+                return self.MSE** (1/2)
 
     def predict(self, x):
         '''Return a prediction of y for the variable x by using the linear regression y = αx + β.'''
@@ -266,16 +308,18 @@ class Leaf:
     def breakpoints(self):
         return [] # no breakpoints
 
-class Node:
+class Node(AbstractReg):
     STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split'])
-    def __init__(self, left_node, right_node):
+    def __init__(self, left_node, right_node, mode):
         '''Assumptions:
              - all the x values in left_node are lower than the x values in right_node,
              - values in left_node  are sorted in increasing order (w.r.t. x),
              - values in right_node are sorted in decreasing order (w.r.t. x),
              - left_node.last  is the largest  x value in left_node,
              - right_node.last is the smallest x value in right_node.'''
+        assert mode in ('AIC', 'BIC', 'RSS')
+        self.mode = mode
         self.left = left_node
         self.right = right_node
 
@@ -305,11 +349,26 @@ class Node:
             return self.right.first
 
     @property
+    def RSS(self):
+        '''Return the residual sum of squares (RSS) of the segmented linear regression.'''
+        return self.left.RSS + self.right.RSS
+
+    @property
+    def nb_params(self):
+        '''Return the number of parameters of the model.'''
+        return self.left.nb_params + self.right.nb_params + 1 # one additional parameter: the breakpoint
+
+    @property
     def error(self):
-        '''Return the weighted error of the node.'''
+        '''Return an error, depending on the chosen mode. Lowest is better.'''
         if len(self.left) <= 1 or len(self.right) <= 1:
             return float('inf')
-        return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
+        if self.mode == 'AIC':
+            return self.AIC
+        if self.mode == 'BIC':
+            return self.BIC
+        if self.mode == 'RSS':
+            return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
 
     def left_to_right(self):
         '''Move the last element of the left node to the right node.'''
@@ -352,9 +411,6 @@ class Node:
 
         return '%s\n%s\n%s' % (split, left_str, right_str)
 
-    def __repr__(self):
-        return str(self)
-
     def compute_best_fit(self, depth=0):
         '''Compute the best fit for the dataset of this node. This can either be:
             - a leaf, representing a single linear regression,
@@ -378,18 +434,20 @@ class Node:
             if self.error < lowest_error:
                 lowest_error = self.error
                 lowest_index = i
-        if lowest_error * 1.1 < nosplit.error and len(self) > 20: # TODO stopping criteria?
+        if lowest_error < nosplit.error: # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
                 if left_to_right:
                     self.right_to_left()
                 else:
                     self.left_to_right()
+            if not abs(lowest_error - self.error) < 1e-3:
+                print(lowest_error, self.error)
             assert abs(lowest_error - self.error) < 1e-3
             assert(max(self.left)[0] <= self.split)
             assert(min(self.right)[0] >= self.split)
-            self.left = Node(self.left, Leaf([], [])).compute_best_fit(depth+1)
-            self.right = Node(Leaf([], []), self.right).compute_best_fit(depth+1)
+            self.left = Node(self.left, Leaf([], [], mode=self.mode), mode=self.mode).compute_best_fit(depth+1)
+            self.right = Node(Leaf([], [], mode=self.mode), self.right, mode=self.mode).compute_best_fit(depth+1)
             self.errors = self.Error(nosplit.error, new_errors)
             return self
         else:
@@ -417,9 +475,9 @@ class Node:
             if left == right or merge == left or merge == right:
                 result = merge
             else:
-                result = Node(left, right)
+                result = Node(left, right, mode=self.mode)
         else:
-            result = Node(left, right)
+            result = Node(left, right, mode=self.mode)
         result.errors = self.errors
         return result
 
@@ -427,7 +485,7 @@ class Node:
     def breakpoints(self):
         return self.left.breakpoints + [self.split] + self.right.breakpoints
 
-def compute_regression(x, y=None, *, simplify=True):
+def compute_regression(x, y=None, *, simplify=False, mode='BIC'):
     '''Compute a segmented linear regression.
     The data can be given either as a tuple of two lists, or a list of tuples (each one of size 2).
     The first values represent the x, the second values represent the y.
@@ -441,7 +499,7 @@ def compute_regression(x, y=None, *, simplify=True):
     dataset = sorted(dataset)
     x = [d[0] for d in dataset]
     y = [d[1] for d in dataset]
-    reg = Node(Leaf(x, y), Leaf([], [])).compute_best_fit()
+    reg = Node(Leaf(x, y, mode=mode), Leaf([], [], mode=mode), mode=mode).compute_best_fit()
     if statsmodels and simplify:
         reg = reg.simplify()
     return reg
