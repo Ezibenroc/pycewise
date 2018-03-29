@@ -256,17 +256,20 @@ class Leaf(AbstractReg):
     def RSS(self):
         '''Return the residual sum of squares (RSS) of the linear regression y = αx + β.
         See https://stats.stackexchange.com/a/333431/196336'''
-        a  = self.coeff
-        b  = self.intercept
-        x  = self.x.sum
-        y  = self.y.sum
-        x2 = self.x.sum_square
-        y2 = self.y.sum_square
-        xy = self.xy.sum
-        return (+y2\
-                -2*(a*xy + b*y)\
-                +(a**2*x2 + 2*a*b*x + len(self)*b**2)
-        )
+        try:
+            a  = self.coeff
+            b  = self.intercept
+            x  = self.x.sum
+            y  = self.y.sum
+            x2 = self.x.sum_square
+            y2 = self.y.sum_square
+            xy = self.xy.sum
+            return (+y2\
+                    -2*(a*xy + b*y)\
+                    +(a**2*x2 + 2*a*b*x + len(self)*b**2)
+            )
+        except ZeroDivisionError:
+            return float('inf')
 
     @property
     def nb_params(self):
