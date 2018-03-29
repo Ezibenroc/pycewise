@@ -7,6 +7,10 @@ try:
 except ImportError:
     statsmodels = None
     sys.stderr.write('WARNING: no module statsmodels, the tree will not be simplified.')
+try:
+    import graphviz # https://github.com/xflr6/graphviz
+except ImportError:
+    graphviz = None
 
 class IncrementalStat:
     '''Represent a collection of numbers. Numbers can be added and removed (see methods add and pop).
@@ -143,6 +147,9 @@ class Leaf(AbstractReg):
         if len(self) <= 1:
             return '⊥'
         return 'y ~ %.3fx + %.3f' % (self.coeff, self.intercept)
+
+    def _to_graphviz(self, dot):
+        dot.node(str(id(self)), str(self))
 
     def __iter__(self):
         yield from zip(self.x, self.y)
@@ -410,6 +417,20 @@ class Node(AbstractReg):
         right_str = self.tabulate(right_str)
 
         return '%s\n%s\n%s' % (split, left_str, right_str)
+
+    def to_graphviz(self):
+        if graphviz is None:
+            raise ImportError('No module named "graphviz".')
+        dot = graphviz.Digraph()
+        self._to_graphviz(dot)
+        return dot
+
+    def _to_graphviz(self, dot):
+        dot.node(str(id(self)), 'x ≤ %.3f?' % self.split, shape='box')
+        self.left._to_graphviz(dot)
+        self.right._to_graphviz(dot)
+        dot.edge(str(id(self)), str(id(self.left)), 'yes')
+        dot.edge(str(id(self)), str(id(self.right)), 'no')
 
     def compute_best_fit(self, depth=0):
         '''Compute the best fit for the dataset of this node. This can either be:
