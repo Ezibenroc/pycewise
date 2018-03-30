@@ -487,6 +487,7 @@ class Node(AbstractReg):
             new_errors.append((self.split, self.error))
             if self.error < lowest_error:
                 lowest_error = self.error
+                lowest_split = self.split
                 lowest_index = i
         if lowest_error < nosplit.error: # TODO stopping criteria?
             while i > lowest_index:
@@ -495,9 +496,7 @@ class Node(AbstractReg):
                     self.right_to_left()
                 else:
                     self.left_to_right()
-            if not abs(lowest_error - self.error) < 1e-3:
-                print(lowest_error, self.error, self.cls)
-            assert abs(lowest_error - self.error) < 1e-3
+            assert lowest_split == self.split
             self.left = Node(self.left, Leaf([], [], mode=self.mode), mode=self.mode).compute_best_fit(depth+1)
             self.right = Node(Leaf([], [], mode=self.mode), self.right, mode=self.mode).compute_best_fit(depth+1)
             self.errors = self.Error(nosplit.error, new_errors)
