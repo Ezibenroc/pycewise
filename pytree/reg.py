@@ -38,6 +38,8 @@ class IncrementalStat:
         if len(self) == 0:
             self.K = val
             self.cls = val.__class__
+        else:
+            assert self.cls is val.__class__
         self.values.append(val)
         self.Ex  += val - self.K
         self.Ex2 += (val - self.K)**2
@@ -104,25 +106,41 @@ class AbstractReg:
         return self.RSS / len(self)
 
     def information_criteria(self, param_penalty):
+        RSS = self.RSS
+        if RSS <= 0:
+            RSS = RSS.__class__(math.ldexp(1.0, -1074)) # RSS cannot be null or negative
         try:
-            result =  param_penalty + len(self)*math.log(self.RSS)
-        except ValueError: # negative RSS (due to some floating point errors)
-            result = 0
-        return max(result, param_penalty)
+            logrss = RSS.ln() # works only for Decimal
+        except AttributeError:
+            logrss = math.log(RSS)
+        return param_penalty + len(self)*logrss
 
     @property
     def AIC(self):
         '''Return the Akaike information criterion (AIC) of the linear regression.
         See https://en.wikipedia.org/wiki/Akaike_information_criterion#Comparison_with_least_squares'''
-        param_penalty = 2*self.nb_params
+        param_penalty = self.cls(2*self.nb_params)
         return self.information_criteria(param_penalty)
 
     @property
     def BIC(self):
         '''Return the bayesian information criterion (BIC) of the linear regression.
         See https://en.wikipedia.org/wiki/Bayesian_information_criterion#Gaussian_special_case'''
-        param_penalty = math.log(len(self))*self.nb_params
+        param_penalty = self.cls(len(self))
+        try:
+            param_penalty = param_penalty.ln()
+        except AttributeError:
+            param_penalty = math.log(param_penalty)
+        param_penalty *= self.nb_params
         return self.information_criteria(param_penalty)
+
+    def compute_RSS(self):
+        '''Actually compute the residual sum of squares from scratch.
+        Should be a bit more precise than the RSS property, but O(n) duration.'''
+        rss = 0
+        for x, y in self:
+            rss += (y - self.predict(x))**2
+        return rss
 
 class Leaf(AbstractReg):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
@@ -200,6 +218,11 @@ class Leaf(AbstractReg):
         return True
 
     @property
+    def cls(self):
+        assert self.x.cls is self.y.cls
+        return self.x.cls
+
+    @property
     def first(self):
         '''Return the first element x that was added to the collection.'''
         return self.x.first
@@ -272,14 +295,6 @@ class Leaf(AbstractReg):
             )
         except ZeroDivisionError:
             return float('inf')
-
-    def compute_RSS(self):
-        '''Actually compute the residual sum of squares from scratch.
-        Should be a bit more precise than the RSS property, but O(n) duration.'''
-        rss = 0
-        for x, y in zip(self.x, self.y):
-            rss += (y - self.predict(x))**2
-        return rss
 
     @property
     def nb_params(self):
@@ -359,6 +374,11 @@ class Node(AbstractReg):
             return self.left.min
         except AttributeError: # left is a leaf
             return self.left.first
+
+    @property
+    def cls(self):
+        assert self.left.cls is self.right.cls
+        return self.left.cls
 
     @property
     def max(self):
@@ -476,10 +496,8 @@ class Node(AbstractReg):
                 else:
                     self.left_to_right()
             if not abs(lowest_error - self.error) < 1e-3:
-                print(lowest_error, self.error)
+                print(lowest_error, self.error, self.cls)
             assert abs(lowest_error - self.error) < 1e-3
-            assert(max(self.left)[0] <= self.split)
-            assert(min(self.right)[0] >= self.split)
             self.left = Node(self.left, Leaf([], [], mode=self.mode), mode=self.mode).compute_best_fit(depth+1)
             self.right = Node(Leaf([], [], mode=self.mode), self.right, mode=self.mode).compute_best_fit(depth+1)
             self.errors = self.Error(nosplit.error, new_errors)
