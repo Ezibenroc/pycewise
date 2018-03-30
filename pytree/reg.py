@@ -2,6 +2,7 @@ from collections import namedtuple
 import itertools
 import math
 from copy import deepcopy
+from decimal import Decimal
 try:
     import statsmodels.formula.api as statsmodels
 except ImportError:
@@ -240,7 +241,7 @@ class Leaf(AbstractReg):
     @property
     def coeff(self):
         '''Return the coefficient α of the linear regression y = αx + β.'''
-        return self.corr * self.std_y / self.std_x
+        return self.cov / self.x.var
 
     @property
     def intercept(self):
@@ -270,6 +271,14 @@ class Leaf(AbstractReg):
             )
         except ZeroDivisionError:
             return float('inf')
+
+    def compute_RSS(self):
+        '''Actually compute the residual sum of squares from scratch.
+        Should be a bit more precise than the RSS property, but O(n) duration.'''
+        rss = 0
+        for x, y in zip(self.x, self.y):
+            rss += (y - self.predict(x))**2
+        return rss
 
     @property
     def nb_params(self):
