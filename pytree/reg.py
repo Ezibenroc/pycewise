@@ -37,6 +37,7 @@ class IncrementalStat:
         '''Add a new element to the collection.'''
         if len(self) == 0:
             self.K = val
+            self.cls = val.__class__
         self.values.append(val)
         self.Ex  += val - self.K
         self.Ex2 += (val - self.K)**2
@@ -79,7 +80,7 @@ class IncrementalStat:
     @property
     def std(self):
         '''Return the standard deviation of all the elements of the collection.'''
-        return self.var ** (1/2)
+        return self.var ** self.cls(1/2)
 
     @property
     def sum(self):

@@ -3,14 +3,22 @@
 import unittest
 import random
 import numpy
+from decimal import Decimal
+from fractions import Fraction
 from pytree import Node, Leaf, IncrementalStat, compute_regression
 
 DEFAULT_MODE='RSS'
 
-def generate_dataset(intercept, coeff, size, min_x, max_x):
+def generate_dataset(intercept, coeff, size, min_x, max_x, cls=float):
     dataset = []
+    if cls is float:
+        f = cls
+    else:
+        f = lambda x: cls('%.3f' % x)
+    intercept = f(intercept)
+    coeff     = f(coeff)
     for _ in range(size):
-        x = random.uniform(min_x, max_x)
+        x = f(random.uniform(min_x, max_x))
         y = x*coeff + intercept
         dataset.append((x, y))
     return dataset
@@ -33,6 +41,25 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertAlmostEqual(numpy.std(values),  stats.std)
             self.assertAlmostEqual(sum(values),        stats.sum)
             self.assertAlmostEqual(sum([val**2 for val in values]), stats.sum_square)
+
+    def test_special_classes(self):
+        size = random.randint(50, 100)
+        for cls in [Fraction, Decimal]:
+            values = []
+            stats = IncrementalStat()
+            for _ in range(size):
+                val = cls('%.3f' % random.uniform(0, 100))
+                stats.add(val)
+                values.append(val)
+            for _ in range(size-2): # don't do the last two ones
+                val = stats.last
+                self.assertEqual(stats.pop(), val)
+                self.assertEqual(values.pop(), val)
+                self.assertEqual(numpy.mean(values), stats.mean)
+                self.assertAlmostEqual(numpy.var(values),  stats.var)
+                self.assertAlmostEqual(numpy.var(values)**cls(1/2),  stats.std)
+                self.assertEqual(sum(values),        stats.sum)
+                self.assertEqual(sum([val**2 for val in values]), stats.sum_square)
 
 
 class LeafTest(unittest.TestCase):
@@ -71,7 +98,6 @@ class LeafTest(unittest.TestCase):
             y = [d[1] + random.gauss(0, noise) for d in self.data]
             node = Leaf(x, y, mode=DEFAULT_MODE)
             self.perform_tests(x, y, node, noise > 0)
-
 
     def test_add_remove(self):
         for noise in [0, 1, 2, 4, 8]:
@@ -174,8 +200,8 @@ class NodeTest(unittest.TestCase):
         self.assertEqual(reg.breakpoints, [reg.split])
         self.assertEqual(list(reg), list(sorted(dataset)))
 
-    def test_multiplesplits(self):
-        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10) for i in range(1, 9)]
+    def generic_multiplesplits(self, cls):
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10, cls=cls) for i in range(1, 9)]
         dataset = sum(all_datasets, [])
         reg = compute_regression(dataset)
         self.assertEqual(list(reg), list(sorted(dataset)))
@@ -186,6 +212,14 @@ class NodeTest(unittest.TestCase):
             prediction = reg.predict(x)
             self.assertAlmostEqual(y, prediction)
 
+    def test_multiple_splits(self):
+        self.generic_multiplesplits(float)
+
+    def test_multiple_splits_decimal(self):
+        self.generic_multiplesplits(Decimal)
+
+    def test_multiple_splits_fraction(self):
+        self.generic_multiplesplits(Fraction)
 
 if __name__ == "__main__":
     unittest.main()
