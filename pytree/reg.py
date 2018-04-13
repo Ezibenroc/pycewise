@@ -142,6 +142,9 @@ class AbstractReg:
             rss += (y - self.predict(x))**2
         return rss
 
+    def compute_statsmodels_RSS(self):
+        return self.left.compute_statsmodels_RSS() + self.right.compute_statsmodels_RSS()
+
 class Leaf(AbstractReg):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
     Pairs can be added or removed (see methods add/pop) to the collection in any order.
@@ -342,6 +345,16 @@ class Leaf(AbstractReg):
     @property
     def breakpoints(self):
         return [] # no breakpoints
+
+    def compute_statsmodels_reg(self):
+        self.statsmodels_reg = statsmodels.ols(formula='y~x', data={'x': self.x.values,  'y': self.y.values }).fit()
+
+    def compute_statsmodels_RSS(self):
+        try:
+            self.statsmodels_reg
+        except AttributeError:
+            self.compute_statsmodels_reg()
+        return self.statsmodels_reg.ssr
 
 class Node(AbstractReg):
     STR_LJUST = 30
