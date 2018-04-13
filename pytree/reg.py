@@ -344,7 +344,6 @@ class Leaf(AbstractReg):
         return [] # no breakpoints
 
 class Node(AbstractReg):
-    STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split'])
     def __init__(self, left_node, right_node, mode):
         '''Assumptions:
@@ -535,6 +534,76 @@ class Node(AbstractReg):
     @property
     def breakpoints(self):
         return self.left.breakpoints + [self.split] + self.right.breakpoints
+
+class Regression(AbstractReg):
+    def __init__(self, tree):
+        self.tree = tree
+        self.regressions = self.compute_flat_repr(self.tree)
+        self.breakpoints = self.tree.breakpoints
+        self.cls = self.tree.cls
+        self.mode = self.tree.mode
+
+    def compute_flat_repr(self, tree):
+        if isinstance(tree, Leaf):
+            return [tree]
+        reg_left = self.compute_flat_repr(tree.left)
+        reg_right = self.compute_flat_repr(tree.right)
+        return reg_left + reg_right
+
+    def __str__(self):
+        if len(self.regressions) == 1:
+            return str(self.regressions[0])
+        breakpoints = [('      -∞', '%.2e' % self.breakpoints[0])]
+        for i in range(len(self.breakpoints)-1):
+            breakpoints.append(('%.2e' % self.breakpoints[i], '%.2e' % self.breakpoints[i+1]))
+        breakpoints.append(('%.2e' % self.breakpoints[-1], '+∞      '))
+        result = []
+        for i, (left, right) in enumerate(breakpoints):
+            interval = '%s ≤ x ≤ %s' % (left, right)
+            result.append('if %s then %s' % (interval, self.regressions[i]))
+        return '\n'.join(result)
+
+    @property
+    def RSS(self):
+        return sum(reg.RSS for reg in self.regressions)
+
+    @property
+    def error(self):
+        '''Return an error, depending on the chosen mode. Lowest is better.'''
+        if self.mode == 'AIC':
+            return self.AIC
+        if self.mode == 'BIC':
+            return self.BIC
+        if self.mode == 'RSS':
+            if self.MSE < 0:
+                return 0
+            else:
+                return self.MSE** (1/2)
+
+    @property
+    def nb_params(self):
+        return sum(reg.nb_params for reg in self.regressions) + len(self.breakpoints)
+
+    def __len__(self):
+        return sum(len(reg) for reg in self.regressions)
+
+    def __iter__(self):
+        yield from self.tree
+
+    def simplify(self):
+        i = 0
+        while i < len(self.regressions[i])-1:
+            left = self.regressions[i]
+            right = self.regressions[i+1]
+            aggr = left+right
+            if aggr.error < self.error:
+                print('Aggregate %s and %s' % (left, right))
+                self.regressions[i] = aggr
+                del self.regressions[i+1]
+                del self.breakpoints[i]
+            else:
+                print('Do not aggregate %s and %s' % (left, right))
+                i += 1
 
 def compute_regression(x, y=None, *, simplify=False, mode='BIC'):
     '''Compute a segmented linear regression.

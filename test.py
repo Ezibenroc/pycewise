@@ -90,6 +90,7 @@ class LeafTest(unittest.TestCase):
         for xx, yy in zip(x, y):
             MSE += (yy - node.predict(xx))**2
         self.assertAlmostEqual(node.MSE, MSE/len(x))
+        self.assertAlmostEqual(node.RSS, node.compute_RSS())
         self.assertEqual(list(node), list(zip(x, y)))
 
     def test_init(self):
