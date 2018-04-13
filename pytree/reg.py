@@ -142,9 +142,6 @@ class AbstractReg:
             rss += (y - self.predict(x))**2
         return rss
 
-    def compute_statsmodels_RSS(self):
-        return self.left.compute_statsmodels_RSS() + self.right.compute_statsmodels_RSS()
-
 class Leaf(AbstractReg):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
     Pairs can be added or removed (see methods add/pop) to the collection in any order.
@@ -405,6 +402,9 @@ class Node(AbstractReg):
     def RSS(self):
         '''Return the residual sum of squares (RSS) of the segmented linear regression.'''
         return self.left.RSS + self.right.RSS
+
+    def compute_statsmodels_RSS(self):
+        return self.left.compute_statsmodels_RSS() + self.right.compute_statsmodels_RSS()
 
     @property
     def nb_params(self):
