@@ -1,6 +1,7 @@
 from collections import namedtuple
 import itertools
 import math
+import sys
 from copy import deepcopy
 from decimal import Decimal
 try:
@@ -33,18 +34,8 @@ class IncrementalStat:
     def __reviter__(self):
         yield from reversed(self.values)
 
-    @property
-    def cls(self):
-        if self.__cls is int:
-            return float
-        return self.__cls
-
     def add(self, val):
         '''Add a new element to the collection.'''
-        if len(self) == 0 or self.__cls is int:
-            self.__cls = val.__class__
-        else:
-            assert self.__cls is val.__class__
         original_value = val
         val = self.func(val)
         Ex = self.Ex[-1]
@@ -90,7 +81,7 @@ class IncrementalStat:
     @property
     def std(self):
         '''Return the standard deviation of all the elements of the collection.'''
-        return self.var ** self.cls(1/2)
+        return math.sqrt(self.var)
 
     @property
     def sum(self):
@@ -116,24 +107,22 @@ class AbstractReg:
             logrss = RSS.ln() # works only for Decimal
         except AttributeError:
             logrss = math.log(RSS)
+            param_penalty = float(param_penalty) # cannot add Decimal and float
         return param_penalty + len(self)*logrss
 
     @property
     def AIC(self):
         '''Return the Akaike information criterion (AIC) of the linear regression.
         See https://en.wikipedia.org/wiki/Akaike_information_criterion#Comparison_with_least_squares'''
-        param_penalty = self.cls(2*self.nb_params)
+        param_penalty = 2*self.nb_params
         return self.information_criteria(param_penalty)
 
     @property
     def BIC(self):
         '''Return the bayesian information criterion (BIC) of the linear regression.
         See https://en.wikipedia.org/wiki/Bayesian_information_criterion#Gaussian_special_case'''
-        param_penalty = self.cls(len(self))
-        try:
-            param_penalty = param_penalty.ln()
-        except AttributeError:
-            param_penalty = math.log(param_penalty)
+        param_penalty = Decimal(len(self))
+        param_penalty = param_penalty.ln()
         param_penalty *= self.nb_params
         return self.information_criteria(param_penalty)
 
@@ -221,11 +210,6 @@ class Leaf(AbstractReg):
         elif signif_slope1 or signif_slope2:
             return False
         return True
-
-    @property
-    def cls(self):
-        assert self.x.cls is self.y.cls
-        return self.x.cls
 
     @property
     def first(self):
@@ -393,11 +377,6 @@ class Node(AbstractReg):
             return self.left.min
         except AttributeError: # left is a leaf
             return self.left.first
-
-    @property
-    def cls(self):
-        assert self.left.cls is self.right.cls
-        return self.left.cls
 
     @property
     def max(self):
