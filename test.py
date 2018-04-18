@@ -40,7 +40,6 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertAlmostEqual(numpy.var(values),  stats.var)
             self.assertAlmostEqual(numpy.std(values),  stats.std)
             self.assertAlmostEqual(sum(values),        stats.sum)
-            self.assertAlmostEqual(sum([val**2 for val in values]), stats.sum_square)
 
     def test_special_classes(self):
         size = random.randint(50, 100)
@@ -59,7 +58,27 @@ class IncrementalStatTest(unittest.TestCase):
                 self.assertAlmostEqual(numpy.var(values),  stats.var)
                 self.assertAlmostEqual(numpy.var(values)**cls(1/2),  stats.std)
                 self.assertEqual(sum(values),        stats.sum)
-                self.assertEqual(sum([val**2 for val in values]), stats.sum_square)
+
+    def test_func(self):
+        f = lambda x: x**2 - x + 4
+        size = random.randint(50, 100)
+        original_values = []
+        values = []
+        stats = IncrementalStat(f)
+        for _ in range(size):
+            val = random.uniform(0, 100)
+            stats.add(val)
+            original_values.append(val)
+            values.append(f(val))
+        for _ in range(size-2): # don't do the last two ones
+            val = stats.last
+            self.assertEqual(stats.pop(), val)
+            self.assertEqual(original_values.pop(), val)
+            values.pop()
+            self.assertAlmostEqual(numpy.mean(values), stats.mean)
+            self.assertAlmostEqual(numpy.var(values),  stats.var)
+            self.assertAlmostEqual(numpy.std(values),  stats.std)
+            self.assertAlmostEqual(sum(values),        stats.sum)
 
 
 class LeafTest(unittest.TestCase):
@@ -89,7 +108,10 @@ class LeafTest(unittest.TestCase):
         MSE = 0
         for xx, yy in zip(x, y):
             MSE += (yy - node.predict(xx))**2
-        self.assertAlmostEqual(node.MSE, MSE/len(x))
+        try:
+            self.assertAlmostEqual(node.MSE, MSE/len(x))
+        except:
+            raise
         self.assertEqual(list(node), list(zip(x, y)))
 
     def test_init(self):

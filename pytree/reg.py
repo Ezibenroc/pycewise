@@ -18,11 +18,11 @@ class IncrementalStat:
     Several aggregated values (e.g., mean and variance) can be obtained in constant time.
     For the algorithms, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance'''
 
-    def __init__(self):
+    def __init__(self, func=lambda x: x):
         self.values = []
-        self.K = 0
-        self.Ex = 0
-        self.Ex2 = 0
+        self.Ex = [0]
+        self.M2 = [0]
+        self.func = func
 
     def __len__(self):
         return len(self.values)
@@ -33,16 +33,28 @@ class IncrementalStat:
     def __reviter__(self):
         yield from reversed(self.values)
 
+    @property
+    def cls(self):
+        if self.__cls is int:
+            return float
+        return self.__cls
+
     def add(self, val):
         '''Add a new element to the collection.'''
-        if len(self) == 0:
-            self.K = val
-            self.cls = val.__class__
+        if len(self) == 0 or self.__cls is int:
+            self.__cls = val.__class__
         else:
-            assert self.cls is val.__class__
-        self.values.append(val)
-        self.Ex  += val - self.K
-        self.Ex2 += (val - self.K)**2
+            assert self.__cls is val.__class__
+        original_value = val
+        val = self.func(val)
+        Ex = self.Ex[-1]
+        M2 = self.M2[-1]
+        n = len(self)+1
+        new_Ex = Ex + (val-Ex)/n
+        new_M2 = M2 + (val - Ex)*(val - new_Ex)
+        self.values.append(original_value)
+        self.Ex.append(new_Ex)
+        self.M2.append(new_M2)
 
     @property
     def last(self):
@@ -57,8 +69,8 @@ class IncrementalStat:
     def pop(self):
         '''Remove the last element that was added to the collection and return it.'''
         val = self.values.pop()
-        self.Ex  -= val - self.K
-        self.Ex2 -= (val - self.K)**2
+        self.Ex.pop()
+        self.M2.pop()
         return val
 
     @property
@@ -66,18 +78,14 @@ class IncrementalStat:
         '''Return the mean of all the elements of the collection.'''
         if len(self) == 0:
             return 0
-        return self.K + self.Ex/len(self)
+        return self.Ex[-1]
 
     @property
     def var(self):
         '''Return the variance of all the elements of the collection.'''
         if len(self) == 0:
             return 0
-        result = (self.Ex2 - (self.Ex**2)/len(self)) / len(self)
-        if result < 0: # may happen for a very small variance, due to floating point errors
-            assert result > -1e-6
-            return 0
-        return result
+        return self.M2[-1]/len(self) # TODO sample variance or population variance?
 
     @property
     def std(self):
@@ -87,12 +95,7 @@ class IncrementalStat:
     @property
     def sum(self):
         '''Return the sum of all the elements of the collection.'''
-        return self.Ex + self.K*len(self)
-
-    @property
-    def sum_square(self):
-        '''Return the sum of all the squares of the elements of the collection.'''
-        return self.Ex2 + 2*self.K*self.sum - len(self)*self.K**2
+        return self.mean*len(self)
 
 class AbstractReg:
     '''An abstract class factorizing some common methods of Leaf and Node.
@@ -157,6 +160,8 @@ class Leaf(AbstractReg):
         self.y = IncrementalStat()
         self.cov_sum = IncrementalStat()
         self.xy = IncrementalStat()
+        self.x2 = IncrementalStat(lambda x: x**2)
+        self.y2 = IncrementalStat(lambda x: x**2)
         for xx, yy in zip(x, y):
             self.add(xx, yy)
 
@@ -286,8 +291,8 @@ class Leaf(AbstractReg):
             b  = self.intercept
             x  = self.x.sum
             y  = self.y.sum
-            x2 = self.x.sum_square
-            y2 = self.y.sum_square
+            x2 = self.x2.sum
+            y2 = self.y2.sum
             xy = self.xy.sum
             return (+y2\
                     -2*(a*xy + b*y)\
@@ -326,6 +331,8 @@ class Leaf(AbstractReg):
         self.x.add(x)
         self.y.add(y)
         self.xy.add(x*y)
+        self.x2.add(x)
+        self.y2.add(y)
         # For the covariance, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online.
         self.cov_sum.add(dx*(y - self.mean_y))
 
@@ -333,6 +340,8 @@ class Leaf(AbstractReg):
         '''Remove and return the last pair (x, y) that was added to the collection.'''
         self.cov_sum.pop()
         self.xy.pop()
+        self.x2.pop()
+        self.y2.pop()
         return self.x.pop(), self.y.pop()
 
     def simplify(self):
