@@ -2,6 +2,7 @@ from collections import namedtuple
 import itertools
 import math
 import sys
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from decimal import Decimal
 try:
@@ -88,11 +89,25 @@ class IncrementalStat:
         '''Return the sum of all the elements of the collection.'''
         return self.mean*len(self)
 
-class AbstractReg:
+class AbstractReg(ABC):
     '''An abstract class factorizing some common methods of Leaf and Node.
     '''
     def __repr__(self):
         return str(self)
+
+    @property
+    @abstractmethod
+    def RSS(self):
+        pass
+
+    @property
+    @abstractmethod
+    def nb_params(self):
+        pass
+
+    @abstractmethod
+    def predict(self, x):
+        pass
 
     @property
     def MSE(self):
