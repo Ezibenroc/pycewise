@@ -5,7 +5,7 @@ import random
 import numpy
 from decimal import Decimal
 from fractions import Fraction
-from pytree import Node, Leaf, IncrementalStat, compute_regression
+from pytree import Node, Leaf, IncrementalStat, compute_regression, Config
 
 DEFAULT_MODE='RSS'
 
@@ -91,6 +91,7 @@ class LeafTest(unittest.TestCase):
             x = random.uniform(0, 100)
             y = self.coeff * x + self.intercept
             self.data.append((x, y))
+        self.config = Config(mode=DEFAULT_MODE, epsilon=1e-6)
         self.data.sort()
 
     def perform_tests(self, x, y, node, noisy):
@@ -118,7 +119,7 @@ class LeafTest(unittest.TestCase):
         for noise in [0, 1, 2, 4, 8]:
             x = [d[0] for d in self.data]
             y = [d[1] + random.gauss(0, noise) for d in self.data]
-            node = Leaf(x, y, mode=DEFAULT_MODE)
+            node = Leaf(x, y, config=self.config)
             self.perform_tests(x, y, node, noise > 0)
 
     def test_add_remove(self):
@@ -128,7 +129,7 @@ class LeafTest(unittest.TestCase):
             limit = self.size // 3
             new_x = x[:limit]
             new_y = y[:limit]
-            node = Leaf(list(new_x), list(new_y), mode=DEFAULT_MODE)
+            node = Leaf(list(new_x), list(new_y), config=self.config)
             self.perform_tests(new_x, new_y, node, noise > 0)
             for xx, yy in zip(x[limit:], y[limit:]):
                 node.add(xx, yy)
@@ -142,8 +143,8 @@ class LeafTest(unittest.TestCase):
                 self.perform_tests(new_x, new_y, node, noise > 0)
 
     def test_plus(self):
-        l1 = Leaf(range(10), range(10), mode=DEFAULT_MODE)
-        l2 = Leaf(range(10, 20), range(10, 20), mode=DEFAULT_MODE)
+        l1 = Leaf(range(10), range(10), config=self.config)
+        l2 = Leaf(range(10, 20), range(10, 20), config=self.config)
         l = l1 + l2
         self.assertAlmostEqual(l.intercept, 0)
         self.assertAlmostEqual(l.coeff, 1)
@@ -152,13 +153,13 @@ class LeafTest(unittest.TestCase):
         self.assertEqual(l.y.values, l1.y.values + list(reversed(l2.y.values)))
 
     def assert_equal_reg(self, dataset1, dataset2):
-        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], mode=DEFAULT_MODE)
-        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2], mode=DEFAULT_MODE)
+        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], config=self.config)
+        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2], config=self.config)
         self.assertEqual(leaf1, leaf2)
 
     def assert_notequal_reg(self, dataset1, dataset2):
-        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], mode=DEFAULT_MODE)
-        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2], mode=DEFAULT_MODE)
+        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], config=self.config)
+        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2], config=self.config)
         self.assertNotEqual(leaf1, leaf2)
 
     def test_eq(self):

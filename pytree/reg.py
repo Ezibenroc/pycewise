@@ -95,6 +95,9 @@ class AbstractReg(ABC):
     def __repr__(self):
         return str(self)
 
+    def float_equal(self, a, b):
+        return math.isclose(a, b, abs_tol=self.config.epsilon)
+
     @property
     @abstractmethod
     def RSS(self):
@@ -116,7 +119,7 @@ class AbstractReg(ABC):
 
     def information_criteria(self, param_penalty):
         RSS = self.RSS
-        if RSS <= 0:
+        if RSS <= 0 or self.float_equal(RSS, 0):
             RSS = RSS.__class__(math.ldexp(1.0, -1074)) # RSS cannot be null or negative
         try:
             logrss = RSS.ln() # works only for Decimal
@@ -156,10 +159,9 @@ class Leaf(AbstractReg):
     of the linear regression).
     '''
 
-    def __init__(self, x, y, mode):
+    def __init__(self, x, y, config):
         assert len(x) == len(y)
-        assert mode in ('AIC', 'BIC', 'RSS')
-        self.mode = mode
+        self.config = config
         self.x = IncrementalStat()
         self.y = IncrementalStat()
         self.cov_sum = IncrementalStat()
@@ -191,7 +193,7 @@ class Leaf(AbstractReg):
         y1 = self.y.values
         x2 = other.x.values
         y2 = other.y.values
-        return self.__class__(x1+list(reversed(x2)), y1+list(reversed(y2)), mode=self.mode)
+        return self.__class__(x1+list(reversed(x2)), y1+list(reversed(y2)), config=self.config)
 
     def __eq__(self, other):
         '''Return True if the two Leaf instances are not *significantly* different.
@@ -310,11 +312,11 @@ class Leaf(AbstractReg):
         '''Return an error, depending on the chosen mode. Lowest is better.'''
         if self.std_x == 0:
             return float('inf')
-        if self.mode == 'AIC':
+        if self.config.mode == 'AIC':
             return self.AIC
-        if self.mode == 'BIC':
+        if self.config.mode == 'BIC':
             return self.BIC
-        if self.mode == 'RSS':
+        if self.config.mode == 'RSS':
             if self.MSE < 0:
                 return 0
             else:
@@ -364,17 +366,17 @@ class Leaf(AbstractReg):
 class Node(AbstractReg):
     STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split'])
-    def __init__(self, left_node, right_node, mode):
+    def __init__(self, left_node, right_node):
         '''Assumptions:
              - all the x values in left_node are lower than the x values in right_node,
              - values in left_node  are sorted in increasing order (w.r.t. x),
              - values in right_node are sorted in decreasing order (w.r.t. x),
              - left_node.last  is the largest  x value in left_node,
              - right_node.last is the smallest x value in right_node.'''
-        assert mode in ('AIC', 'BIC', 'RSS')
-        self.mode = mode
         self.left = left_node
         self.right = right_node
+        assert self.left.config == self.right.config
+        self.config = self.left.config
 
     def __len__(self):
         return len(self.left) + len(self.right)
@@ -419,11 +421,11 @@ class Node(AbstractReg):
         '''Return an error, depending on the chosen mode. Lowest is better.'''
         if len(self.left) <= 1 or len(self.right) <= 1:
             return float('inf')
-        if self.mode == 'AIC':
+        if self.config.mode == 'AIC':
             return self.AIC
-        if self.mode == 'BIC':
+        if self.config.mode == 'BIC':
             return self.BIC
-        if self.mode == 'RSS':
+        if self.config.mode == 'RSS':
             return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
 
     def left_to_right(self):
@@ -505,7 +507,7 @@ class Node(AbstractReg):
                 lowest_error = self.error
                 lowest_split = self.split
                 lowest_index = i
-        if lowest_error < nosplit.error: # TODO stopping criteria?
+        if lowest_error < nosplit.error and not self.float_equal(lowest_error, nosplit.error): # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
                 if left_to_right:
@@ -513,8 +515,8 @@ class Node(AbstractReg):
                 else:
                     self.left_to_right()
             assert lowest_split == self.split
-            self.left = Node(self.left, Leaf([], [], mode=self.mode), mode=self.mode).compute_best_fit(depth+1)
-            self.right = Node(Leaf([], [], mode=self.mode), self.right, mode=self.mode).compute_best_fit(depth+1)
+            self.left = Node(self.left, Leaf([], [], config=self.config)).compute_best_fit(depth+1)
+            self.right = Node(Leaf([], [], config=self.config), self.right).compute_best_fit(depth+1)
             self.errors = self.Error(nosplit.error, new_errors)
             return self
         else:
@@ -542,9 +544,9 @@ class Node(AbstractReg):
             if left == right or merge == left or merge == right:
                 result = merge
             else:
-                result = Node(left, right, mode=self.mode)
+                result = Node(left, right)
         else:
-            result = Node(left, right, mode=self.mode)
+            result = Node(left, right)
         result.errors = self.errors
         return result
 
@@ -552,7 +554,18 @@ class Node(AbstractReg):
     def breakpoints(self):
         return self.left.breakpoints + [self.split] + self.right.breakpoints
 
-def compute_regression(x, y=None, *, simplify=False, mode='BIC'):
+class Config:
+    allowed_modes = ('AIC', 'BIC', 'RSS')
+    def __init__(self, mode, epsilon):
+        if mode not in self.allowed_modes:
+            raise ValueError('Unknown mode %s. Authorized modes: %s.' % (mode, ', '.join(self.allowed_modes)))
+        self.mode = mode
+        self.epsilon = epsilon
+
+    def __eq__(self, other):
+        return self is other or (self.mode == other.mode and self.epsilon == other.epsilon)
+
+def compute_regression(x, y=None, *, simplify=False, mode='BIC', epsilon=None):
     '''Compute a segmented linear regression.
     The data can be given either as a tuple of two lists, or a list of tuples (each one of size 2).
     The first values represent the x, the second values represent the y.
@@ -566,7 +579,12 @@ def compute_regression(x, y=None, *, simplify=False, mode='BIC'):
     dataset = sorted(dataset)
     x = [d[0] for d in dataset]
     y = [d[1] for d in dataset]
-    reg = Node(Leaf(x, y, mode=mode), Leaf([], [], mode=mode), mode=mode).compute_best_fit()
+    if epsilon:
+        assert epsilon > 0
+    else:
+        epsilon = min([abs(yy) for yy in y])
+    config = Config(mode, epsilon)
+    reg = Node(Leaf(x, y, config=config), Leaf([], [], config=config)).compute_best_fit()
     if statsmodels and simplify:
         reg = reg.simplify()
     return reg
