@@ -2,7 +2,7 @@
 
 import sys
 import os
-from distutils.core import setup
+from distutils.core import setup, Command
 from subprocess import Popen, PIPE
 
 def get_version():
@@ -17,14 +17,26 @@ def get_version():
 def set_version(directory, version):
     filename = os.path.join(directory, 'version.py')
     with open(filename, 'w') as f:
-        f.write('__version__ = "%s"' % version)
+        f.write('__version__ = "%s"\n' % version)
+
+class VersionCommand(Command):
+    user_options=[]
+    description = "Update the project version."
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        set_version('pytree', get_version())
 
 if __name__ == '__main__':
-    set_version('pytree', get_version())
     setup(name='pytree',
           version='0.0.1',
           description='Simple implementation of model trees.',
           author='Tom Cornebize',
           author_email='tom.cornebize@gmail.com',
-          packages=['pytree']
+          packages=['pytree'],
+          cmdclass={'set_version' : VersionCommand},
          )
