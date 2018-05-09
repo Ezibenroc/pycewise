@@ -41,23 +41,21 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertAlmostEqual(numpy.std(values),  stats.std)
             self.assertAlmostEqual(sum(values),        stats.sum)
 
-    def test_special_classes(self):
+    def test_fraction(self):
         size = random.randint(50, 100)
-        for cls in [Fraction, Decimal]:
-            values = []
-            stats = IncrementalStat()
-            for _ in range(size):
-                val = cls('%.3f' % random.uniform(0, 100))
-                stats.add(val)
-                values.append(val)
-            for _ in range(size-2): # don't do the last two ones
-                val = stats.last
-                self.assertEqual(stats.pop(), val)
-                self.assertEqual(values.pop(), val)
-                self.assertEqual(numpy.mean(values), stats.mean)
-                self.assertAlmostEqual(numpy.var(values),  stats.var)
-                self.assertAlmostEqual(numpy.var(values)**cls(1/2),  stats.std)
-                self.assertEqual(sum(values),        stats.sum)
+        values = []
+        stats = IncrementalStat()
+        for _ in range(size):
+            val = Fraction(random.uniform(0, 100))
+            stats.add(val)
+            values.append(val)
+        for _ in range(size-2): # don't do the last two ones
+            val = stats.last
+            self.assertEqual(stats.pop(), val)
+            self.assertEqual(values.pop(), val)
+            self.assertEqual(numpy.mean(values), stats.mean)
+            self.assertEqual(numpy.var(values),  stats.var)
+            self.assertEqual(sum(values),        stats.sum)
 
     def test_func(self):
         f = lambda x: x**2 - x + 4
