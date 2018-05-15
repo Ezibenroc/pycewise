@@ -95,8 +95,17 @@ class AbstractReg(ABC):
     def __repr__(self):
         return str(self)
 
-    def float_equal(self, a, b):
-        return math.isclose(a, b, abs_tol=self.config.epsilon)
+    @property
+    def null_RSS(self):
+        return self.RSS <= 0 or math.isclose(self.RSS, 0, abs_tol=self.config.epsilon**2)
+
+    def error_equal(self, a, b):
+        if self.config.mode == 'RSS':
+            eps = self.config.epsilon**2
+        else:
+            assert self.config.mode in ('BIC', 'AIC')
+            eps = abs(math.log2(self.config.epsilon**2))
+        return math.isclose(a, b, abs_tol=eps)
 
     @property
     @abstractmethod
@@ -119,7 +128,7 @@ class AbstractReg(ABC):
 
     def information_criteria(self, param_penalty):
         RSS = self.RSS
-        if RSS <= 0 or self.float_equal(RSS, 0):
+        if self.null_RSS:
             RSS = RSS.__class__(math.ldexp(1.0, -1074)) # RSS cannot be null or negative
         try:
             logrss = RSS.ln() # works only for Decimal
@@ -507,7 +516,7 @@ class Node(AbstractReg):
                 lowest_error = self.error
                 lowest_split = self.split
                 lowest_index = i
-        if lowest_error < nosplit.error and not self.float_equal(lowest_error, nosplit.error): # TODO stopping criteria?
+        if lowest_error < nosplit.error and not self.error_equal(lowest_error, nosplit.error): # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
                 if left_to_right:
