@@ -14,6 +14,10 @@ try:
     import graphviz # https://github.com/xflr6/graphviz
 except ImportError:
     graphviz = None
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
 class IncrementalStat:
     '''Represent a collection of numbers. Numbers can be added and removed (see methods add and pop).
@@ -160,6 +164,29 @@ class AbstractReg(ABC):
         for x, y in self:
             rss += (y - self.predict(x))**2
         return rss
+
+    def plot_dataset(self):
+        data = list(self)
+        x = [d[0] for d in data]
+        y = [d[1] for d in data]
+        plt.figure(figsize=(20,20))
+        plt.subplot(2,1,1)
+        plt.plot(x, y, 'o', color='blue')
+        new_y = [self.predict(d[0]) for d in data]
+        new_x = [d[0] for d in data]
+        plt.plot(new_x, new_y, '-', color='red')
+        axes = plt.gca()
+        plt.show()
+
+    def plot_error(self):
+        x = [d[0] for d in self.errors.split]
+        y = [d[1] for d in self.errors.split]
+        plt.figure(figsize=(20,20))
+        plt.subplot(2,1,1)
+        plt.plot(x, y, 'o', color='blue')
+        plt.axhline(y=self.errors.nosplit, color='red', linestyle='-')
+        axes = plt.gca()
+        plt.show()
 
 class Leaf(AbstractReg):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
