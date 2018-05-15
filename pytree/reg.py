@@ -165,7 +165,7 @@ class AbstractReg(ABC):
             rss += (y - self.predict(x))**2
         return rss
 
-    def plot_dataset(self):
+    def plot_dataset(self, log=False, log_x=False, log_y=False):
         data = list(self)
         x = [d[0] for d in data]
         y = [d[1] for d in data]
@@ -176,9 +176,13 @@ class AbstractReg(ABC):
         new_x = [d[0] for d in data]
         plt.plot(new_x, new_y, '-', color='red')
         axes = plt.gca()
+        if log or log_x:
+            plt.xscale('log')
+        if log or log_y:
+            plt.yscale('log')
         plt.show()
 
-    def plot_error(self):
+    def plot_error(self, log=False, log_x=False, log_y=False):
         plt.figure(figsize=(20,20))
         plt.subplot(2,1,1)
         x = []
@@ -197,6 +201,10 @@ class AbstractReg(ABC):
         plt.plot(x_min, y_min, 'o', color='red')
         plt.axhline(y=self.errors.nosplit, color='red', linestyle='-')
         axes = plt.gca()
+        if log or log_x:
+            plt.xscale('log')
+        if log or log_y:
+            plt.yscale('log')
         plt.show()
 
 class Leaf(AbstractReg):
