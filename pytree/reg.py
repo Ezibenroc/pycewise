@@ -179,11 +179,22 @@ class AbstractReg(ABC):
         plt.show()
 
     def plot_error(self):
-        x = [d[0] for d in self.errors.split]
-        y = [d[1] for d in self.errors.split]
         plt.figure(figsize=(20,20))
         plt.subplot(2,1,1)
+        x = []
+        y = []
+        x_min = []
+        y_min = []
+        min_err = self.errors.minsplit
+        for d in self.errors.split:
+            if self.error_equal(d[1], min_err):
+                x_min.append(d[0])
+                y_min.append(d[1])
+            else:
+                x.append(d[0])
+                y.append(d[1])
         plt.plot(x, y, 'o', color='blue')
+        plt.plot(x_min, y_min, 'o', color='red')
         plt.axhline(y=self.errors.nosplit, color='red', linestyle='-')
         axes = plt.gca()
         plt.show()
@@ -401,7 +412,7 @@ class Leaf(AbstractReg):
 
 class Node(AbstractReg):
     STR_LJUST = 30
-    Error = namedtuple('Error', ['nosplit', 'split'])
+    Error = namedtuple('Error', ['nosplit', 'split', 'minsplit'])
     def __init__(self, left_node, right_node):
         '''Assumptions:
              - all the x values in left_node are lower than the x values in right_node,
@@ -553,10 +564,10 @@ class Node(AbstractReg):
             assert lowest_split == self.split
             self.left = Node(self.left, Leaf([], [], config=self.config)).compute_best_fit(depth+1)
             self.right = Node(Leaf([], [], config=self.config), self.right).compute_best_fit(depth+1)
-            self.errors = self.Error(nosplit.error, new_errors)
+            self.errors = self.Error(nosplit.error, new_errors, lowest_error)
             return self
         else:
-            nosplit.errors = self.Error(nosplit.error, new_errors)
+            nosplit.errors = self.Error(nosplit.error, new_errors, lowest_error)
             return nosplit
 
     def predict(self, x):
