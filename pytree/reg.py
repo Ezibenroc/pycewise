@@ -224,7 +224,7 @@ class Leaf(AbstractReg):
     def __str__(self):
         if len(self) <= 1:
             return '⊥'
-        return 'y ~ %.3fx + %.3f' % (self.coeff, self.intercept)
+        return 'y ~ %.3ex + %.3e' % (self.coeff, self.intercept)
 
     def _to_graphviz(self, dot):
         dot.node(str(id(self)), str(self))
@@ -503,7 +503,7 @@ class Node(AbstractReg):
         return '\n'.join(substrings)
 
     def __str__(self):
-        split = 'x ≤ %.3f?' % self.split
+        split = 'x ≤ %.3e?' % self.split
         left_str = str(self.left)
         left_str = self.tabulate(left_str, '│', True)
         left_str = '└──' + left_str
@@ -524,7 +524,7 @@ class Node(AbstractReg):
         return dot
 
     def _to_graphviz(self, dot):
-        dot.node(str(id(self)), 'x ≤ %.3f?' % self.split, shape='box')
+        dot.node(str(id(self)), 'x ≤ %.3e?' % self.split, shape='box')
         self.left._to_graphviz(dot)
         self.right._to_graphviz(dot)
         dot.edge(str(id(self)), str(id(self.left)), 'yes')
