@@ -432,6 +432,13 @@ class Node(AbstractReg):
         self.right = right_node
         assert self.left.config == self.right.config
         self.config = self.left.config
+        if len(self.right) == 0:
+            self.nosplit = deepcopy(self.left)
+            self.left_to_right = True
+        else:
+            assert len(self.left) == 0
+            self.nosplit = deepcopy(self.right)
+            self.left_to_right = False
 
     def __len__(self):
         return len(self.left) + len(self.right)
@@ -483,15 +490,29 @@ class Node(AbstractReg):
         if self.config.mode == 'RSS':
             return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
 
-    def left_to_right(self):
+    def move_left_to_right(self):
         '''Move the last element of the left node to the right node.'''
         x, y = self.left.pop()
         self.right.add(x, y)
 
-    def right_to_left(self):
+    def move_right_to_left(self):
         '''Move the last element of the right node to the left node.'''
         x, y = self.right.pop()
         self.left.add(x, y)
+
+    def move_single_forward(self):
+        '''Move one element from the node that was full at instantiation to the node that was empty at instantiation.'''
+        if self.left_to_right:
+            self.move_left_to_right()
+        else:
+            self.move_right_to_left()
+
+    def move_single_backward(self):
+        '''Move one element from the node that was empty at instantiation to the node that was full at instantiation.'''
+        if self.left_to_right:
+            self.move_right_to_left()
+        else:
+            self.move_left_to_right()
 
     @property
     def split(self):
@@ -539,44 +560,31 @@ class Node(AbstractReg):
         dot.edge(str(id(self)), str(id(self.right)), 'no')
 
     def compute_best_fit(self, depth=0):
-        '''Compute the best fit for the dataset of this node. This can either be:
+        '''Compute recursively the best fit for the dataset of this node, using a greedy algorithm. This can either be:
             - a leaf, representing a single linear regression,
-            - two nodes with a split, representing a segmented linear regressions.'''
-        if len(self.right) == 0:
-            nosplit = deepcopy(self.left)
-            left_to_right = True
-        else:
-            assert len(self.left) == 0
-            nosplit = deepcopy(self.right)
-            left_to_right = False
+            - a tree of nodes, representing a segmented linear regressions.'''
         lowest_error  = self.error
         lowest_index  = 0
         new_errors = []
         for i in range(len(self)-1):
-            if left_to_right:
-                self.left_to_right()
-            else:
-                self.right_to_left()
+            self.move_single_forward()
             new_errors.append((self.split, self.error))
             if self.error < lowest_error:
                 lowest_error = self.error
                 lowest_split = self.split
                 lowest_index = i
-        if lowest_error < nosplit.error and not self.error_equal(lowest_error, nosplit.error): # TODO stopping criteria?
+        if lowest_error < self.nosplit.error and not self.error_equal(lowest_error, self.nosplit.error): # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
-                if left_to_right:
-                    self.right_to_left()
-                else:
-                    self.left_to_right()
+                self.move_single_backward()
             assert lowest_split == self.split
             self.left = Node(self.left, Leaf([], [], config=self.config)).compute_best_fit(depth+1)
             self.right = Node(Leaf([], [], config=self.config), self.right).compute_best_fit(depth+1)
-            self.errors = self.Error(nosplit.error, new_errors, lowest_error)
+            self.errors = self.Error(self.nosplit.error, new_errors, lowest_error)
             return self
         else:
-            nosplit.errors = self.Error(nosplit.error, new_errors, lowest_error)
-            return nosplit
+            self.nosplit.errors = self.Error(self.nosplit.error, new_errors, lowest_error)
+            return self.nosplit
 
     def predict(self, x):
         '''Return a prediction of y for the variable x by using the piecewise linear regression.'''
