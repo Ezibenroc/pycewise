@@ -9,7 +9,7 @@ from pytree import Node, Leaf, IncrementalStat, compute_regression, Config
 
 DEFAULT_MODE='RSS'
 
-def generate_dataset(intercept, coeff, size, min_x, max_x, cls=float):
+def generate_dataset(intercept, coeff, size, min_x, max_x, cls=float, repeat=1):
     dataset = []
     if cls is float:
         f = cls
@@ -20,7 +20,7 @@ def generate_dataset(intercept, coeff, size, min_x, max_x, cls=float):
     for _ in range(size):
         x = f(random.uniform(min_x, max_x))
         y = x*coeff + intercept
-        dataset.append((x, y))
+        dataset.extend([(x, y)]*repeat)
     return dataset
 
 class IncrementalStatTest(unittest.TestCase):
@@ -231,8 +231,8 @@ class NodeTest(unittest.TestCase):
             if not is_in:
                 self.fail('Element %s is not in sequence %s (with ε=%f).' % (elt, sequence, epsilon))
 
-    def generic_multiplesplits(self, cls):
-        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10, cls=cls) for i in range(1, 9)]
+    def generic_multiplesplits(self, cls, repeat):
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10, cls=cls, repeat=repeat) for i in range(1, 9)]
         dataset = sum(all_datasets, [])
         reg = compute_regression(dataset)
         self.assertEqual(list(reg), list(sorted(dataset)))
@@ -243,13 +243,14 @@ class NodeTest(unittest.TestCase):
             self.assertAlmostEqual(y, prediction)
 
     def test_multiple_splits(self):
-        self.generic_multiplesplits(float)
+        self.generic_multiplesplits(float, 1)
+        self.generic_multiplesplits(float, 10)
 
     def test_multiple_splits_decimal(self):
-        self.generic_multiplesplits(Decimal)
+        self.generic_multiplesplits(Decimal, 1)
 
     def test_multiple_splits_fraction(self):
-        self.generic_multiplesplits(Fraction)
+        self.generic_multiplesplits(Fraction, 1)
 
 if __name__ == "__main__":
     unittest.main()
