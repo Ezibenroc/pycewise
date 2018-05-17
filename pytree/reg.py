@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import namedtuple, Counter
 import itertools
 import math
 import sys
@@ -219,6 +219,7 @@ class Leaf(AbstractReg):
         self.config = config
         self.x = IncrementalStat()
         self.y = IncrementalStat()
+        self.counter_x = Counter()
         self.cov_sum = IncrementalStat()
         self.xy = IncrementalStat()
         self.x2 = IncrementalStat(lambda x: x**2)
@@ -385,6 +386,7 @@ class Leaf(AbstractReg):
         '''Add the pair (x, y) to the collection.'''
         dx = x - self.mean_x
         self.x.add(x)
+        self.counter_x[x] += 1
         self.y.add(y)
         self.xy.add(x*y)
         self.x2.add(x)
@@ -398,7 +400,23 @@ class Leaf(AbstractReg):
         self.xy.pop()
         self.x2.pop()
         self.y2.pop()
-        return self.x.pop(), self.y.pop()
+        x = self.x.pop()
+        self.counter_x[x] -= 1
+        if self.counter_x[x] == 0:
+            del self.counter_x[x]
+        return x, self.y.pop()
+
+    def pop_all(self):
+        '''Remove and return the last set of pairs (x_i, y_i) such that all x_i are equal and there is no more point in
+        the dataset that have an x equal to x_i.'''
+        result = []
+        x, y = self.pop()
+        result.append((x, y))
+        while self.counter_x[x] > 0:
+            x2, y2 = self.pop()
+            assert x2 == x
+            result.append((x2, y2))
+        return result
 
     def simplify(self):
         '''Does nothing.'''
@@ -491,32 +509,40 @@ class Node(AbstractReg):
             return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
 
     def move_left_to_right(self):
-        '''Move the last element of the left node to the right node.'''
-        x, y = self.left.pop()
-        self.right.add(x, y)
+        '''Move the last element(s) of the left node to the right node.'''
+        for x, y in self.left.pop_all():
+            self.right.add(x, y)
 
     def move_right_to_left(self):
-        '''Move the last element of the right node to the left node.'''
-        x, y = self.right.pop()
-        self.left.add(x, y)
+        '''Move the last element(s) of the right node to the left node.'''
+        for x, y in self.right.pop_all():
+            self.left.add(x, y)
 
-    def move_single_forward(self):
-        '''Move one element from the node that was full at instantiation to the node that was empty at instantiation.'''
+    def move_forward(self):
+        '''Move element(s) from the node that was full at instantiation to the node that was empty at instantiation.'''
         if self.left_to_right:
             self.move_left_to_right()
         else:
             self.move_right_to_left()
 
-    def move_single_backward(self):
-        '''Move one element from the node that was empty at instantiation to the node that was full at instantiation.'''
+    def move_backward(self):
+        '''Move element(s) from the node that was empty at instantiation to the node that was full at instantiation.'''
         if self.left_to_right:
             self.move_right_to_left()
         else:
             self.move_left_to_right()
 
     @property
+    def can_move(self):
+        if self.left_to_right:
+            return len(self.left.counter_x) > 1
+        else:
+            return len(self.right.counter_x) > 1
+
+    @property
     def split(self):
         '''Return the current split (i.e., the largest element of the left node).'''
+        assert len(self.left) > 0
         try:
             return self.left.max
         except AttributeError: # left is a leaf
@@ -566,8 +592,10 @@ class Node(AbstractReg):
         lowest_error  = self.error
         lowest_index  = 0
         new_errors = []
-        for i in range(len(self)-1):
-            self.move_single_forward()
+        i = 0
+        while self.can_move:
+            self.move_forward()
+            i += 1
             new_errors.append((self.split, self.error))
             if self.error < lowest_error:
                 lowest_error = self.error
@@ -576,7 +604,7 @@ class Node(AbstractReg):
         if lowest_error < self.nosplit.error and not self.error_equal(lowest_error, self.nosplit.error): # TODO stopping criteria?
             while i > lowest_index:
                 i -= 1
-                self.move_single_backward()
+                self.move_backward()
             assert lowest_split == self.split
             self.left = Node(self.left, Leaf([], [], config=self.config)).compute_best_fit(depth+1)
             self.right = Node(Leaf([], [], config=self.config), self.right).compute_best_fit(depth+1)
