@@ -193,6 +193,8 @@ class AbstractReg(ABC):
             self.merge().__plot_reg('black')
         if len(self.breakpoints) > 1:
             Node(self.left.merge(), self.right.merge(), no_check=True).__plot_reg('green')
+        for bp in self.breakpoints:
+            plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
         axes = plt.gca()
         if log or log_x:
             plt.xscale('log')
