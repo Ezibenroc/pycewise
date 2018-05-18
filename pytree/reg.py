@@ -169,32 +169,15 @@ class AbstractReg(ABC):
         min_x = math.floor(min(self)[0]) # cannot use self.min, only Node objects have it
         max_x = math.ceil(max(self)[0])
         breaks = [min_x, *self.breakpoints, max_x]
-        new_x = []
         for i in range(len(breaks)-1):
-            start = breaks[i]
-            stop = breaks[i+1]
-            step = (stop-start)/50
-            while start < stop:
-                new_x.append(start)
-                start += step
-            new_x.append(stop)
-        new_y = [self.predict(d) for d in new_x]
-        plt.plot(new_x, new_y, '-', color=color)
+            new_x = []
+            x1 = breaks[i] * (1+1e-3)
+            x2 = breaks[i+1] * (1-1e-3)
+            y1 = self.predict(x1)
+            y2 = self.predict(x2)
+            plt.plot([x1, x2], [y1, y2], '-', color=color)
 
-    def plot_dataset(self, log=False, log_x=False, log_y=False):
-        data = list(self)
-        x = [d[0] for d in data]
-        y = [d[1] for d in data]
-        plt.figure(figsize=(20,20))
-        plt.subplot(2,1,1)
-        plt.plot(x, y, 'o', color='blue')
-        self.__plot_reg()
-        if len(self.breakpoints) > 0:
-            self.merge().__plot_reg('black')
-        if len(self.breakpoints) > 1:
-            Node(self.left.merge(), self.right.merge(), no_check=True).__plot_reg('green')
-        for bp in self.breakpoints:
-            plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
+    def __show_plot(self, log, log_x, log_y):
         axes = plt.gca()
         if log or log_x:
             plt.xscale('log')
@@ -202,7 +185,23 @@ class AbstractReg(ABC):
             plt.yscale('log')
         plt.show()
 
-    def plot_error(self, log=False, log_x=False, log_y=False):
+    def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5):
+        data = list(self)
+        x = [d[0] for d in data]
+        y = [d[1] for d in data]
+        plt.figure(figsize=(20,20))
+        plt.subplot(2,1,1)
+        plt.plot(x, y, 'o', color='blue', alpha=alpha)
+        if len(self.breakpoints) > 0:
+            self.merge().__plot_reg('black')
+        if len(self.breakpoints) > 1:
+            Node(self.left.merge(), self.right.merge(), no_check=True).__plot_reg('green')
+        self.__plot_reg()
+        for bp in self.breakpoints:
+            plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
+        self.__show_plot(log, log_x, log_y)
+
+    def plot_error(self, log=False, log_x=False, log_y=False, alpha=1):
         plt.figure(figsize=(20,20))
         plt.subplot(2,1,1)
         x = []
@@ -217,15 +216,12 @@ class AbstractReg(ABC):
             else:
                 x.append(d[0])
                 y.append(d[1])
-        plt.plot(x, y, 'o', color='blue')
+        plt.plot(x, y, 'o', color='blue', alpha=alpha)
         plt.plot(x_min, y_min, 'o', color='red')
         plt.axhline(y=self.errors.nosplit, color='red', linestyle='-')
-        axes = plt.gca()
-        if log or log_x:
-            plt.xscale('log')
-        if log or log_y:
-            plt.yscale('log')
-        plt.show()
+        for bp in self.breakpoints:
+            plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
+        self.__show_plot(log, log_x, log_y)
 
 class Leaf(AbstractReg):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
