@@ -171,11 +171,15 @@ class AbstractReg(ABC):
         breaks = [min_x, *self.breakpoints, max_x]
         for i in range(len(breaks)-1):
             new_x = []
-            x1 = breaks[i] * (1+1e-3)
-            x2 = breaks[i+1] * (1-1e-3)
-            y1 = self.predict(x1)
-            y2 = self.predict(x2)
-            plt.plot([x1, x2], [y1, y2], '-', color=color)
+            start = breaks[i]*(1+1e-3)
+            stop = breaks[i+1]*(1-1e-3)
+            step = (stop-start)/50
+            while start < stop:
+                new_x.append(start)
+                start += step
+            new_x.append(stop)
+            new_y = [self.predict(d) for d in new_x]
+            plt.plot(new_x, new_y, '-', color=color)
 
     def __show_plot(self, log, log_x, log_y):
         axes = plt.gca()
