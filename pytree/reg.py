@@ -166,8 +166,8 @@ class AbstractReg(ABC):
         return rss
 
     def __plot_reg(self, color='red'):
-        min_x = math.floor(self.min)
-        max_x = math.ceil(self.max)
+        min_x = math.floor(min(self)[0]) # cannot use self.min, only Node objects have it
+        max_x = math.ceil(max(self)[0])
         breaks = [min_x, *self.breakpoints, max_x]
         new_x = []
         for i in range(len(breaks)-1):
@@ -189,6 +189,10 @@ class AbstractReg(ABC):
         plt.subplot(2,1,1)
         plt.plot(x, y, 'o', color='blue')
         self.__plot_reg()
+        if len(self.breakpoints) > 0:
+            self.merge().__plot_reg('black')
+        if len(self.breakpoints) > 1:
+            Node(self.left.merge(), self.right.merge(), no_check=True).__plot_reg('green')
         axes = plt.gca()
         if log or log_x:
             plt.xscale('log')
@@ -440,6 +444,9 @@ class Leaf(AbstractReg):
     def breakpoints(self):
         return [] # no breakpoints
 
+    def merge(self):
+        return self # nothing to do, already a single line
+
     def compute_statsmodels_reg(self):
         self.statsmodels_reg = statsmodels.ols(formula='y~x', data={'x': self.x.values,  'y': self.y.values }).fit()
 
@@ -453,7 +460,7 @@ class Leaf(AbstractReg):
 class Node(AbstractReg):
     STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split', 'minsplit'])
-    def __init__(self, left_node, right_node):
+    def __init__(self, left_node, right_node, *, no_check=False):
         '''Assumptions:
              - all the x values in left_node are lower than the x values in right_node,
              - values in left_node  are sorted in increasing order (w.r.t. x),
@@ -468,7 +475,7 @@ class Node(AbstractReg):
             self.nosplit = deepcopy(self.left)
             self.left_to_right = True
         else:
-            assert len(self.left) == 0
+            assert no_check or len(self.left) == 0
             self.nosplit = deepcopy(self.right)
             self.left_to_right = False
 
@@ -658,6 +665,9 @@ class Node(AbstractReg):
     @property
     def breakpoints(self):
         return self.left.breakpoints + [self.split] + self.right.breakpoints
+
+    def merge(self):
+        return self.left.merge() + self.right.merge()
 
 class Config:
     allowed_modes = ('AIC', 'BIC', 'RSS')
