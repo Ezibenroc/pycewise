@@ -165,7 +165,7 @@ class AbstractReg(ABC):
             rss += (y - self.predict(x))**2
         return rss
 
-    def __plot_reg(self, color='red'):
+    def __plot_reg(self, color='red', log=False):
         min_x = math.floor(min(self)[0]) # cannot use self.min, only Node objects have it
         max_x = math.ceil(max(self)[0])
         breaks = [min_x, *self.breakpoints, max_x]
@@ -173,10 +173,17 @@ class AbstractReg(ABC):
             new_x = []
             start = breaks[i]*(1+1e-3)
             stop = breaks[i+1]*(1-1e-3)
-            step = (stop-start)/50
-            while start < stop:
-                new_x.append(start)
-                start += step
+            if log:
+                x_i = start
+                while x_i < stop:
+                    new_x.append(x_i)
+                    x_i *= 1.5 # TODO find a better factor
+            else:
+                step = (stop-start)/1000
+                x_i = start
+                while x_i < stop:
+                    new_x.append(x_i)
+                    x_i += step
             new_x.append(stop)
             new_y = [self.predict(d) for d in new_x]
             plt.plot(new_x, new_y, '-', color=color)
@@ -197,9 +204,9 @@ class AbstractReg(ABC):
         plt.subplot(2,1,1)
         plt.plot(x, y, 'o', color='blue', alpha=alpha)
         if len(self.breakpoints) > 0:
-            self.merge().__plot_reg('black')
+            self.merge().__plot_reg('black', log=log or log_x)
         if len(self.breakpoints) > 1:
-            Node(self.left.merge(), self.right.merge(), no_check=True).__plot_reg('green')
+            Node(self.left.merge(), self.right.merge(), no_check=True).__plot_reg('green', log=log or log_x)
         self.__plot_reg()
         for bp in self.breakpoints:
             plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
