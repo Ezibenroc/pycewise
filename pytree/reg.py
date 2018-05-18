@@ -165,6 +165,22 @@ class AbstractReg(ABC):
             rss += (y - self.predict(x))**2
         return rss
 
+    def __plot_reg(self, color='red'):
+        min_x = math.floor(self.min)
+        max_x = math.ceil(self.max)
+        breaks = [min_x, *self.breakpoints, max_x]
+        new_x = []
+        for i in range(len(breaks)-1):
+            start = breaks[i]
+            stop = breaks[i+1]
+            step = (stop-start)/50
+            while start < stop:
+                new_x.append(start)
+                start += step
+            new_x.append(stop)
+        new_y = [self.predict(d) for d in new_x]
+        plt.plot(new_x, new_y, '-', color=color)
+
     def plot_dataset(self, log=False, log_x=False, log_y=False):
         data = list(self)
         x = [d[0] for d in data]
@@ -172,9 +188,7 @@ class AbstractReg(ABC):
         plt.figure(figsize=(20,20))
         plt.subplot(2,1,1)
         plt.plot(x, y, 'o', color='blue')
-        new_y = [self.predict(d[0]) for d in data]
-        new_x = [d[0] for d in data]
-        plt.plot(new_x, new_y, '-', color='red')
+        self.__plot_reg()
         axes = plt.gca()
         if log or log_x:
             plt.xscale('log')
