@@ -10,6 +10,7 @@ statsmodels = "*"
 jupyter = "*"
 matplotlib = "*"
 graphviz = "*"
+coverage = "*"
 
 [requires]
 python_version = "3.6"

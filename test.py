@@ -5,6 +5,7 @@ import random
 import numpy
 from decimal import Decimal
 from fractions import Fraction
+import graphviz
 from pytree import Node, Leaf, IncrementalStat, compute_regression, Config
 
 DEFAULT_MODE='RSS'
@@ -184,6 +185,16 @@ class LeafTest(unittest.TestCase):
         self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
                                  generate_dataset(intercept, 0, size, 0, 100))
 
+    def test_repr(self):
+        self.assertEqual(str(Leaf([], [], self.config)), '⊥')
+        x, y = zip(*generate_dataset(intercept=3, coeff=1, size=100, min_x=0, max_x=100))
+        reg = Leaf(x, y, self.config)
+        self.assertEqual(str(reg), 'y ~ 1.000e+00x + 3.000e+00')
+        dot = graphviz.Digraph()
+        reg._to_graphviz(dot)
+        expected = 'digraph {\n\t%d [label="%s"]\n}' % (id(reg), str(reg))
+        self.assertEqual(str(dot), expected)
+
 class NodeTest(unittest.TestCase):
 
     def test_nosplit(self):
@@ -236,7 +247,7 @@ class NodeTest(unittest.TestCase):
         dataset = sum(all_datasets, [])
         reg = compute_regression(dataset)
         self.assertEqual(list(reg), list(sorted(dataset)))
-        self.assertIn(len(reg.breakpoints), (7, 8)) # TODO should be 7, but is 8 i reality because of the non-optimality of the algorithm
+        self.assertIn(len(reg.breakpoints), (7, 8)) # TODO should be 7, but is 8 in reality because of the non-optimality of the algorithm
         self.assertAlmostIncluded(range(10, 80, 10), reg.breakpoints, epsilon=2)
         for x, y in dataset:
             prediction = reg.predict(x)
@@ -251,6 +262,47 @@ class NodeTest(unittest.TestCase):
 
     def test_multiple_splits_fraction(self):
         self.generic_multiplesplits(Fraction, 1)
+
+    def test_repr(self):
+        config = Config(mode='BIC', epsilon=1e-6)
+        data = {}
+        for i in range(1, 5):
+            data[i] = generate_dataset(intercept=i, coeff=i, size=100, min_x=i*100, max_x=(i+1)*100) + [((i+1)*100, (i+1)*100*i+i)]
+            x = [d[0] for d in data[i]]
+            y = [d[1] for d in data[i]]
+            data[i] = x, y
+        left = Node(Leaf(*data[1], config),  Leaf(list(reversed(data[2][0])), list(reversed(data[2][1])), config), no_check=True)
+        right = Node(Leaf(*data[3], config), Leaf(list(reversed(data[4][0])), list(reversed(data[4][1])), config), no_check=True)
+        node = Node(left, right, no_check=True)
+        expected = '\n'.join([
+            'x ≤ 3.000e+02?',
+            '    └──x ≤ 2.000e+02?',
+            '    │    └──y ~ 1.000e+00x + 1.000e+00',
+            '    │    └──y ~ 2.000e+00x + 2.000e+00',
+            '    └──x ≤ 4.000e+02?',
+            '         └──y ~ 3.000e+00x + 3.000e+00',
+            '         └──y ~ 4.000e+00x + 4.000e+00',])
+        self.assertEqual(expected, str(node))
+        dot = node.to_graphviz()
+
+        expected = '\n'.join([
+            'digraph {',
+            f'\t{id(node)} [label="x ≤ {node.split:.3e}?" shape=box]',
+            f'\t{id(node.left)} [label="x ≤ {node.left.split:.3e}?" shape=box]',
+            f'\t{id(node.left.left)} [label="{str(node.left.left)}"]',
+            f'\t{id(node.left.right)} [label="{str(node.left.right)}"]',
+            f'\t{id(node.left)} -> {id(node.left.left)} [label=yes]',
+            f'\t{id(node.left)} -> {id(node.left.right)} [label=no]',
+            f'\t{id(node.right)} [label="x ≤ {node.right.split:.3e}?" shape=box]',
+            f'\t{id(node.right.left)} [label="{str(node.right.left)}"]',
+            f'\t{id(node.right.right)} [label="{str(node.right.right)}"]',
+            f'\t{id(node.right)} -> {id(node.right.left)} [label=yes]',
+            f'\t{id(node.right)} -> {id(node.right.right)} [label=no]',
+            f'\t{id(node)} -> {id(node.left)} [label=yes]',
+            f'\t{id(node)} -> {id(node.right)} [label=no]',
+            '}',])
+        self.maxDiff = None
+        self.assertEqual(str(dot), expected)
 
 if __name__ == "__main__":
     unittest.main()
