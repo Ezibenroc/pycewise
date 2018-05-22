@@ -6,6 +6,7 @@ import numpy
 from decimal import Decimal
 from fractions import Fraction
 import graphviz
+import mock
 from pytree import Node, Leaf, IncrementalStat, compute_regression, Config
 
 DEFAULT_MODE='RSS'
@@ -303,6 +304,26 @@ class NodeTest(unittest.TestCase):
             '}',])
         self.maxDiff = None
         self.assertEqual(str(dot), expected)
+
+    @mock.patch("matplotlib.pyplot.show")
+    def test_plot_dataset(self, mock_show):
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10) for i in range(1, 9)]
+        dataset = sum(all_datasets, [])
+        reg = compute_regression(dataset)
+        reg.plot_dataset()
+        reg.plot_dataset(log=True)
+        reg.plot_dataset(log_x=True)
+        reg.plot_dataset(log_y=True)
+
+    @mock.patch("matplotlib.pyplot.show")
+    def test_plot_error(self, mock_show):
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10) for i in range(1, 9)]
+        dataset = sum(all_datasets, [])
+        reg = compute_regression(dataset)
+        reg.plot_error()
+        reg.plot_error(log=True)
+        reg.plot_error(log_x=True)
+        reg.plot_error(log_y=True)
 
 if __name__ == "__main__":
     unittest.main()

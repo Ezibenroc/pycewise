@@ -11,6 +11,7 @@ jupyter = "*"
 matplotlib = "*"
 graphviz = "*"
 coverage = "*"
+mock = "*"
 
 [requires]
 python_version = "3.6"

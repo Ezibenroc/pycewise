@@ -174,7 +174,12 @@ class AbstractReg(ABC):
             start = breaks[i]*(1+1e-3)
             stop = breaks[i+1]*(1-1e-3)
             if log:
-                x_i = start
+                if start <= 0:
+                    x_i = math.ldexp(1.0, -1074) # cannot plot negative values, capping to 0
+                    if stop <= 0:
+                        raise ValueError('Cannot plot in log scale with negative values.')
+                else:
+                    x_i = start
                 while x_i < stop:
                     new_x.append(x_i)
                     x_i *= 1.5 # TODO find a better factor
