@@ -206,7 +206,9 @@ class AbstractReg(ABC):
         if len(self.breakpoints) > 0:
             self.merge().__plot_reg('black', log=log or log_x)
         if len(self.breakpoints) > 1:
-            Node(self.left.merge(), self.right.merge(), no_check=True).__plot_reg('green', log=log or log_x)
+            xl, yl = zip(*self.left)
+            xr, yr = zip(*reversed(list(self.right)))
+            Node(Leaf(xl, yl, self.config), Leaf(xr, yr, self.config), no_check=True).__plot_reg('green', log=log or log_x)
         self.__plot_reg()
         for bp in self.breakpoints:
             plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
