@@ -204,7 +204,6 @@ class AbstractReg(ABC):
             plt.plot(new_x, new_y, '-', color=color)
 
     def __show_plot(self, log, log_x, log_y):
-        axes = plt.gca()
         if log or log_x:
             plt.xscale('log')
         if log or log_y:
@@ -410,8 +409,14 @@ class Leaf(AbstractReg):
 
     @property
     def nb_params(self):
-        '''Return the number of parameters of the model.'''
-        return 3  # only three parameters: slope, intercept and standard deviation of the residuals (we assume they follow a normal distribution of mean 0)
+        '''Return the number of parameters of the model.
+            There are only three parameters for a Leaf:
+            - the slope,
+            - the intercept,
+            - the standard deviation of the residuals.
+            This is true *if* we assume that the residuals follow a normal distribution fo mean 0.
+        '''
+        return 3
 
     @property
     def error(self):
