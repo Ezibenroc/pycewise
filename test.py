@@ -9,11 +9,11 @@ import graphviz
 import mock
 import os
 import matplotlib as mpl
-from pytree import Node, Leaf, IncrementalStat, compute_regression, Config
 # Needed for running the tests on Travis:
 if os.environ.get('DISPLAY', '') == '':
-    print('no display found. Using non-interactive Agg backend')
+    print('No display found. Using non-interactive Agg backend.')
     mpl.use('Agg')
+from pytree import Node, Leaf, IncrementalStat, compute_regression, Config # noqa: 402
 
 DEFAULT_MODE = 'RSS'
 

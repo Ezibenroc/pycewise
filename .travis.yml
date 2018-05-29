@@ -5,14 +5,10 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      python: 3.5
-    - os: linux
-      dist: trusty
-      sudo: required
       python: 3.6
     - os: osx
       language: generic
-      env: PYTHON=3.5.1
+      env: PYTHON=3.6.5
 
 before_install: |
   # These steps are taken from https://pythonhosted.org/CodeChat/.travis.yml.html
