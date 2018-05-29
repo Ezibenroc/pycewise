@@ -16,7 +16,7 @@ def generate_dataset(intercept, coeff, size, min_x, max_x, cls=float, repeat=1):
     if cls is float:
         f = cls
     else:
-        f = lambda x: cls('%.3f' % x)
+        def f(x): return cls('%.3f' % x)
     intercept = f(intercept)
     coeff     = f(coeff)
     for _ in range(size):
@@ -60,7 +60,7 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertEqual(sum(values),        stats.sum)
 
     def test_func(self):
-        f = lambda x: x**2 - x + 4
+        def f(x): return x**2 - x + 4
         size = random.randint(50, 100)
         original_values = []
         values = []
@@ -109,10 +109,7 @@ class LeafTest(unittest.TestCase):
         MSE = 0
         for xx, yy in zip(x, y):
             MSE += (yy - node.predict(xx))**2
-        try:
-            self.assertAlmostEqual(node.MSE, MSE/len(x))
-        except:
-            raise
+        self.assertAlmostEqual(node.MSE, MSE/len(x))
         self.assertEqual(list(node), list(zip(x, y)))
 
     def test_init(self):
@@ -145,12 +142,12 @@ class LeafTest(unittest.TestCase):
     def test_plus(self):
         l1 = Leaf(range(10), range(10), config=self.config)
         l2 = Leaf(range(10, 20), range(10, 20), config=self.config)
-        l = l1 + l2
-        self.assertAlmostEqual(l.intercept, 0)
-        self.assertAlmostEqual(l.coeff, 1)
-        self.assertAlmostEqual(l.MSE, 0)
-        self.assertEqual(l.x.values, l1.x.values + list(reversed(l2.x.values)))
-        self.assertEqual(l.y.values, l1.y.values + list(reversed(l2.y.values)))
+        leaf = l1 + l2
+        self.assertAlmostEqual(leaf.intercept, 0)
+        self.assertAlmostEqual(leaf.coeff, 1)
+        self.assertAlmostEqual(leaf.MSE, 0)
+        self.assertEqual(leaf.x.values, l1.x.values + list(reversed(l2.x.values)))
+        self.assertEqual(leaf.y.values, l1.y.values + list(reversed(l2.y.values)))
 
     def assert_equal_reg(self, dataset1, dataset2):
         leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], config=self.config)
