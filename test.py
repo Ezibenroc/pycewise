@@ -117,7 +117,7 @@ class LeafTest(unittest.TestCase):
         if noisy:
             delta = max(*x, *y)/100  # TODO better delta ?
         self.assertAlmostEqual(node.coeff,     self.coeff,      delta=delta)
-        self.assertAlmostEqual(node.intercept, self.intercept,  delta=delta)
+        self.assertAlmostEqual(node.intercept, self.intercept,  delta=delta * 10)
         self.assertAlmostEqual(node.rsquared, 1,                delta=delta)
         MSE = 0
         for xx, yy in zip(x, y):
