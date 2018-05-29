@@ -1,48 +1,43 @@
 #!/usr/bin/env python3
 
 import sys
-import os
-from distutils.core import setup, Command
-from subprocess import Popen, PIPE
+from distutils.core import setup
+import subprocess
+
+VERSION = '0.0.0'
 
 
-def get_version():
-    proc = Popen(['git', 'describe', '--tags', '--long',
-                  '--always', '--dirty'], stdout=PIPE, stderr=PIPE)
+def run(args):
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE)
     stdout, stderr = proc.communicate()
-    stdout = stdout.decode('utf8').strip()
-    stderr = stderr.decode('utf8').strip()
     if proc.returncode != 0:
-        sys.exit('Error while getting the git version.\n%s' % stderr)
-    return stdout
+        sys.exit('Error with the command %s.\n' % ' '.join(args))
+    return stdout.decode('ascii').strip()
 
 
-def set_version(directory, version):
-    filename = os.path.join(directory, 'version.py')
+def git_version():
+    return run(['git', 'rev-parse', 'HEAD'])
+
+
+def git_tag():
+    return run(['git', 'describe', '--always', '--dirty'])
+
+
+def write_version(filename, version_dict):
     with open(filename, 'w') as f:
-        f.write('__version__ = "%s"\n' % version)
-
-
-class VersionCommand(Command):
-    user_options = []
-    description = "Update the project version."
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        set_version('pytree', get_version())
+        for version_name in version_dict:
+            f.write('%s = "%s"\n' % (version_name, version_dict[version_name]))
 
 
 if __name__ == '__main__':
+    write_version('pytree/version.py', {
+            '__version__': VERSION,
+            '__git_version__': git_version(),
+        })
     setup(name='pytree',
-          version='0.0.1',
+          version=VERSION,
           description='Simple implementation of model trees.',
           author='Tom Cornebize',
           author_email='tom.cornebize@gmail.com',
           packages=['pytree'],
-          cmdclass={'set_version': VersionCommand},
           )
