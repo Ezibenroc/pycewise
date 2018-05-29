@@ -7,7 +7,13 @@ from decimal import Decimal
 from fractions import Fraction
 import graphviz
 import mock
+import os
+import matplotlib as mpl
 from pytree import Node, Leaf, IncrementalStat, compute_regression, Config
+# Needed for running the tests on Travis:
+if os.environ.get('DISPLAY', '') == '':
+    print('no display found. Using non-interactive Agg backend')
+    mpl.use('Agg')
 
 DEFAULT_MODE = 'RSS'
 
