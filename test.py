@@ -9,7 +9,8 @@ import graphviz
 import mock
 from pytree import Node, Leaf, IncrementalStat, compute_regression, Config
 
-DEFAULT_MODE='RSS'
+DEFAULT_MODE = 'RSS'
+
 
 def generate_dataset(intercept, coeff, size, min_x, max_x, cls=float, repeat=1):
     dataset = []
@@ -18,12 +19,13 @@ def generate_dataset(intercept, coeff, size, min_x, max_x, cls=float, repeat=1):
     else:
         def f(x): return cls('%.3f' % x)
     intercept = f(intercept)
-    coeff     = f(coeff)
+    coeff = f(coeff)
     for _ in range(size):
         x = f(random.uniform(min_x, max_x))
         y = x*coeff + intercept
         dataset.extend([(x, y)]*repeat)
     return dataset
+
 
 class IncrementalStatTest(unittest.TestCase):
     def test_basic(self):
@@ -34,7 +36,7 @@ class IncrementalStatTest(unittest.TestCase):
             val = random.uniform(0, 100)
             stats.add(val)
             values.append(val)
-        for _ in range(size-2): # don't do the last two ones
+        for _ in range(size-2):  # don't do the last two ones
             val = stats.last
             self.assertEqual(stats.pop(), val)
             self.assertEqual(values.pop(), val)
@@ -51,7 +53,7 @@ class IncrementalStatTest(unittest.TestCase):
             val = Fraction(random.uniform(0, 100))
             stats.add(val)
             values.append(val)
-        for _ in range(size-2): # don't do the last two ones
+        for _ in range(size-2):  # don't do the last two ones
             val = stats.last
             self.assertEqual(stats.pop(), val)
             self.assertEqual(values.pop(), val)
@@ -70,7 +72,7 @@ class IncrementalStatTest(unittest.TestCase):
             stats.add(val)
             original_values.append(val)
             values.append(f(val))
-        for _ in range(size-2): # don't do the last two ones
+        for _ in range(size-2):  # don't do the last two ones
             val = stats.last
             self.assertEqual(stats.pop(), val)
             self.assertEqual(original_values.pop(), val)
@@ -96,13 +98,18 @@ class LeafTest(unittest.TestCase):
 
     def perform_tests(self, x, y, node, noisy):
         delta = 1e-10
-        self.assertAlmostEqual(node.mean_x,   numpy.mean(x),              delta=delta)
-        self.assertAlmostEqual(node.mean_y,   numpy.mean(y),              delta=delta)
-        self.assertAlmostEqual(node.std_x,    numpy.std(x),               delta=delta)
-        self.assertAlmostEqual(node.std_y,    numpy.std(y),               delta=delta)
-        self.assertAlmostEqual(node.corr,     numpy.corrcoef(x, y)[1,0],  delta=delta)
+        self.assertAlmostEqual(
+            node.mean_x,   numpy.mean(x),              delta=delta)
+        self.assertAlmostEqual(
+            node.mean_y,   numpy.mean(y),              delta=delta)
+        self.assertAlmostEqual(node.std_x,    numpy.std(
+            x),               delta=delta)
+        self.assertAlmostEqual(node.std_y,    numpy.std(
+            y),               delta=delta)
+        self.assertAlmostEqual(node.corr,     numpy.corrcoef(x, y)[
+                               1, 0],  delta=delta)
         if noisy:
-            delta = max(*x, *y)/100 # TODO better delta ?
+            delta = max(*x, *y)/100  # TODO better delta ?
         self.assertAlmostEqual(node.coeff,     self.coeff,      delta=delta)
         self.assertAlmostEqual(node.intercept, self.intercept,  delta=delta)
         self.assertAlmostEqual(node.rsquared, 1,                delta=delta)
@@ -146,17 +153,23 @@ class LeafTest(unittest.TestCase):
         self.assertAlmostEqual(leaf.intercept, 0)
         self.assertAlmostEqual(leaf.coeff, 1)
         self.assertAlmostEqual(leaf.MSE, 0)
-        self.assertEqual(leaf.x.values, l1.x.values + list(reversed(l2.x.values)))
-        self.assertEqual(leaf.y.values, l1.y.values + list(reversed(l2.y.values)))
+        self.assertEqual(leaf.x.values, l1.x.values +
+                         list(reversed(l2.x.values)))
+        self.assertEqual(leaf.y.values, l1.y.values +
+                         list(reversed(l2.y.values)))
 
     def assert_equal_reg(self, dataset1, dataset2):
-        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], config=self.config)
-        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2], config=self.config)
+        leaf1 = Leaf([d[0] for d in dataset1], [d[1]
+                                                for d in dataset1], config=self.config)
+        leaf2 = Leaf([d[0] for d in dataset2], [d[1]
+                                                for d in dataset2], config=self.config)
         self.assertEqual(leaf1, leaf2)
 
     def assert_notequal_reg(self, dataset1, dataset2):
-        leaf1 = Leaf([d[0] for d in dataset1], [d[1] for d in dataset1], config=self.config)
-        leaf2 = Leaf([d[0] for d in dataset2], [d[1] for d in dataset2], config=self.config)
+        leaf1 = Leaf([d[0] for d in dataset1], [d[1]
+                                                for d in dataset1], config=self.config)
+        leaf2 = Leaf([d[0] for d in dataset2], [d[1]
+                                                for d in dataset2], config=self.config)
         self.assertNotEqual(leaf1, leaf2)
 
     def test_eq(self):
@@ -185,7 +198,8 @@ class LeafTest(unittest.TestCase):
 
     def test_repr(self):
         self.assertEqual(str(Leaf([], [], self.config)), '⊥')
-        x, y = zip(*generate_dataset(intercept=3, coeff=1, size=100, min_x=0, max_x=100))
+        x, y = zip(*generate_dataset(intercept=3,
+                                     coeff=1, size=100, min_x=0, max_x=100))
         reg = Leaf(x, y, self.config)
         self.assertEqual(str(reg), 'y ~ 1.000e+00x + 3.000e+00')
         dot = graphviz.Digraph()
@@ -193,12 +207,14 @@ class LeafTest(unittest.TestCase):
         expected = 'digraph {\n\t%d [label="%s"]\n}' % (id(reg), str(reg))
         self.assertEqual(str(dot), expected)
 
+
 class NodeTest(unittest.TestCase):
 
     def test_nosplit(self):
         intercept = random.uniform(0, 100)
         coeff = random.uniform(0, 100)
-        dataset = generate_dataset(intercept=intercept, coeff=coeff, size=50, min_x=0, max_x=100)
+        dataset = generate_dataset(
+            intercept=intercept, coeff=coeff, size=50, min_x=0, max_x=100)
         reg = compute_regression(dataset)
         self.assertIsInstance(reg, Leaf)
         self.assertAlmostEqual(reg.intercept, intercept)
@@ -213,8 +229,10 @@ class NodeTest(unittest.TestCase):
         intercept_2 = random.uniform(50, 100)
         coeff_2 = random.uniform(50, 100)
         split = random.uniform(30, 60)
-        dataset1 = generate_dataset(intercept=intercept_1, coeff=coeff_1, size=50, min_x=0, max_x=split)
-        dataset2 = generate_dataset(intercept=intercept_2, coeff=coeff_2, size=50, min_x=split, max_x=100)
+        dataset1 = generate_dataset(
+            intercept=intercept_1, coeff=coeff_1, size=50, min_x=0, max_x=split)
+        dataset2 = generate_dataset(
+            intercept=intercept_2, coeff=coeff_2, size=50, min_x=split, max_x=100)
         dataset = dataset1 + dataset2
         random.shuffle(dataset)
         reg = compute_regression(dataset)
@@ -238,15 +256,19 @@ class NodeTest(unittest.TestCase):
                     is_in = True
                     break
             if not is_in:
-                self.fail('Element %s is not in sequence %s (with ε=%f).' % (elt, sequence, epsilon))
+                self.fail('Element %s is not in sequence %s (with ε=%f).' %
+                          (elt, sequence, epsilon))
 
     def generic_multiplesplits(self, cls, repeat):
-        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10, cls=cls, repeat=repeat) for i in range(1, 9)]
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(
+            i-1)*10, max_x=i*10, cls=cls, repeat=repeat) for i in range(1, 9)]
         dataset = sum(all_datasets, [])
         reg = compute_regression(dataset)
         self.assertEqual(list(reg), list(sorted(dataset)))
-        self.assertIn(len(reg.breakpoints), (7, 8)) # TODO should be 7, but is 8 in reality because of the non-optimality of the algorithm
-        self.assertAlmostIncluded(range(10, 80, 10), reg.breakpoints, epsilon=2)
+        # TODO should be 7, but is 8 in reality because of the non-optimality of the algorithm
+        self.assertIn(len(reg.breakpoints), (7, 8))
+        self.assertAlmostIncluded(
+            range(10, 80, 10), reg.breakpoints, epsilon=2)
         for x, y in dataset:
             prediction = reg.predict(x)
             self.assertAlmostEqual(y, prediction)
@@ -265,12 +287,15 @@ class NodeTest(unittest.TestCase):
         config = Config(mode='BIC', epsilon=1e-6)
         data = {}
         for i in range(1, 5):
-            data[i] = generate_dataset(intercept=i, coeff=i, size=100, min_x=i*100, max_x=(i+1)*100) + [((i+1)*100, (i+1)*100*i+i)]
+            data[i] = generate_dataset(
+                intercept=i, coeff=i, size=100, min_x=i*100, max_x=(i+1)*100) + [((i+1)*100, (i+1)*100*i+i)]
             x = [d[0] for d in data[i]]
             y = [d[1] for d in data[i]]
             data[i] = x, y
-        left = Node(Leaf(*data[1], config),  Leaf(list(reversed(data[2][0])), list(reversed(data[2][1])), config), no_check=True)
-        right = Node(Leaf(*data[3], config), Leaf(list(reversed(data[4][0])), list(reversed(data[4][1])), config), no_check=True)
+        left = Node(Leaf(*data[1], config),  Leaf(list(reversed(data[2][0])),
+                                                  list(reversed(data[2][1])), config), no_check=True)
+        right = Node(Leaf(*data[3], config), Leaf(list(reversed(data[4][0])),
+                                                  list(reversed(data[4][1])), config), no_check=True)
         node = Node(left, right, no_check=True)
         expected = '\n'.join([
             'x ≤ 3.000e+02?',
@@ -279,7 +304,7 @@ class NodeTest(unittest.TestCase):
             '    │    └──y ~ 2.000e+00x + 2.000e+00',
             '    └──x ≤ 4.000e+02?',
             '         └──y ~ 3.000e+00x + 3.000e+00',
-            '         └──y ~ 4.000e+00x + 4.000e+00',])
+            '         └──y ~ 4.000e+00x + 4.000e+00', ])
         self.assertEqual(expected, str(node))
         dot = node.to_graphviz()
 
@@ -298,13 +323,14 @@ class NodeTest(unittest.TestCase):
             f'\t{id(node.right)} -> {id(node.right.right)} [label=no]',
             f'\t{id(node)} -> {id(node.left)} [label=yes]',
             f'\t{id(node)} -> {id(node.right)} [label=no]',
-            '}',])
+            '}', ])
         self.maxDiff = None
         self.assertEqual(str(dot), expected)
 
     @mock.patch("matplotlib.pyplot.show")
     def test_plot_dataset(self, mock_show):
-        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10) for i in range(1, 9)]
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(
+            i-1)*10, max_x=i*10) for i in range(1, 9)]
         dataset = sum(all_datasets, [])
         reg = compute_regression(dataset)
         reg.plot_dataset()
@@ -314,13 +340,15 @@ class NodeTest(unittest.TestCase):
 
     @mock.patch("matplotlib.pyplot.show")
     def test_plot_error(self, mock_show):
-        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(i-1)*10, max_x=i*10) for i in range(1, 9)]
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(
+            i-1)*10, max_x=i*10) for i in range(1, 9)]
         dataset = sum(all_datasets, [])
         reg = compute_regression(dataset)
         reg.plot_error()
         reg.plot_error(log=True)
         reg.plot_error(log_x=True)
         reg.plot_error(log_y=True)
+
 
 if __name__ == "__main__":
     unittest.main()

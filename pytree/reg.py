@@ -9,15 +9,17 @@ try:
     import statsmodels.formula.api as statsmodels
 except ImportError:
     statsmodels = None
-    sys.stderr.write('WARNING: no module statsmodels, the tree will not be simplified.')
+    sys.stderr.write(
+        'WARNING: no module statsmodels, the tree will not be simplified.')
 try:
-    import graphviz # https://github.com/xflr6/graphviz
+    import graphviz  # https://github.com/xflr6/graphviz
 except ImportError:
     graphviz = None
 try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
+
 
 class IncrementalStat:
     '''Represent a collection of numbers. Numbers can be added and removed (see methods add and pop).
@@ -81,7 +83,8 @@ class IncrementalStat:
         '''Return the variance of all the elements of the collection.'''
         if len(self) == 0:
             return 0
-        return self.M2[-1]/len(self) # TODO sample variance or population variance?
+        # TODO sample variance or population variance?
+        return self.M2[-1]/len(self)
 
     @property
     def std(self):
@@ -93,9 +96,11 @@ class IncrementalStat:
         '''Return the sum of all the elements of the collection.'''
         return self.mean*len(self)
 
+
 class AbstractReg(ABC):
     '''An abstract class factorizing some common methods of Leaf and Node.
     '''
+
     def __repr__(self):
         return str(self)
 
@@ -133,12 +138,14 @@ class AbstractReg(ABC):
     def information_criteria(self, param_penalty):
         RSS = self.RSS
         if self.null_RSS:
-            RSS = RSS.__class__(math.ldexp(1.0, -1074)) # RSS cannot be null or negative
+            # RSS cannot be null or negative
+            RSS = RSS.__class__(math.ldexp(1.0, -1074))
         try:
-            logrss = RSS.ln() # works only for Decimal
+            logrss = RSS.ln()  # works only for Decimal
         except AttributeError:
             logrss = math.log(RSS)
-            param_penalty = float(param_penalty) # cannot add Decimal and float
+            # cannot add Decimal and float
+            param_penalty = float(param_penalty)
         return param_penalty + len(self)*logrss
 
     @property
@@ -166,7 +173,8 @@ class AbstractReg(ABC):
         return rss
 
     def __plot_reg(self, color='red', log=False):
-        min_x = math.floor(min(self)[0]) # cannot use self.min, only Node objects have it
+        # cannot use self.min, only Node objects have it
+        min_x = math.floor(min(self)[0])
         max_x = math.ceil(max(self)[0])
         breaks = [min_x, *self.breakpoints, max_x]
         for i in range(len(breaks)-1):
@@ -175,14 +183,16 @@ class AbstractReg(ABC):
             stop = breaks[i+1]*(1-1e-3)
             if log:
                 if start <= 0:
-                    x_i = math.ldexp(1.0, -1074) # cannot plot negative values, capping to 0
+                    # cannot plot negative values, capping to 0
+                    x_i = math.ldexp(1.0, -1074)
                     if stop <= 0:
-                        raise ValueError('Cannot plot in log scale with negative values.')
+                        raise ValueError(
+                            'Cannot plot in log scale with negative values.')
                 else:
                     x_i = start
                 while x_i < stop:
                     new_x.append(x_i)
-                    x_i *= 1.5 # TODO find a better factor
+                    x_i *= 1.5  # TODO find a better factor
             else:
                 step = (stop-start)/1000
                 x_i = start
@@ -205,23 +215,24 @@ class AbstractReg(ABC):
         data = list(self)
         x = [d[0] for d in data]
         y = [d[1] for d in data]
-        plt.figure(figsize=(20,20))
-        plt.subplot(2,1,1)
+        plt.figure(figsize=(20, 20))
+        plt.subplot(2, 1, 1)
         plt.plot(x, y, 'o', color='blue', alpha=alpha)
         if len(self.breakpoints) > 0:
             self.merge().__plot_reg('black', log=log or log_x)
         if len(self.breakpoints) > 1:
             xl, yl = zip(*self.left)
             xr, yr = zip(*reversed(list(self.right)))
-            Node(Leaf(xl, yl, self.config), Leaf(xr, yr, self.config), no_check=True).__plot_reg('green', log=log or log_x)
+            Node(Leaf(xl, yl, self.config), Leaf(xr, yr, self.config),
+                 no_check=True).__plot_reg('green', log=log or log_x)
         self.__plot_reg()
         for bp in self.breakpoints:
             plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
         self.__show_plot(log, log_x, log_y)
 
     def plot_error(self, log=False, log_x=False, log_y=False, alpha=1):
-        plt.figure(figsize=(20,20))
-        plt.subplot(2,1,1)
+        plt.figure(figsize=(20, 20))
+        plt.subplot(2, 1, 1)
         x = []
         y = []
         x_min = []
@@ -240,6 +251,7 @@ class AbstractReg(ABC):
         for bp in self.breakpoints:
             plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
         self.__show_plot(log, log_x, log_y)
+
 
 class Leaf(AbstractReg):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
@@ -295,24 +307,28 @@ class Leaf(AbstractReg):
         '''
         if not isinstance(other, self.__class__):
             return False
-        if len(self) <= 5 or len(other) <= 5: # too few points anyway...
+        if len(self) <= 5 or len(other) <= 5:  # too few points anyway...
             return True
         pvalues_thresh = 1e-3
-        reg1 = statsmodels.ols(formula='y~x', data={'x': self.x.values,  'y': self.y.values }).fit()
+        reg1 = statsmodels.ols(formula='y~x', data={
+                               'x': self.x.values,  'y': self.y.values}).fit()
         confint1 = reg1.conf_int(alpha=0.05, cols=None)
-        reg2 = statsmodels.ols(formula='y~x', data={'x': other.x.values, 'y': other.y.values}).fit()
+        reg2 = statsmodels.ols(formula='y~x', data={
+                               'x': other.x.values, 'y': other.y.values}).fit()
         confint2 = reg2.conf_int(alpha=0.05, cols=None)
         signif_intercept1 = reg1.pvalues.Intercept < pvalues_thresh
         signif_intercept2 = reg2.pvalues.Intercept < pvalues_thresh
         signif_slope1 = reg1.pvalues.x < pvalues_thresh
         signif_slope2 = reg2.pvalues.x < pvalues_thresh
-        if signif_intercept1 and signif_intercept2: # intercept is significant for both
-            if confint1[1].Intercept < confint2[0].Intercept-1e-3 or confint1[0].Intercept-1e-3 > confint2[1].Intercept: # non-overlapping C.I. for intercept
+        if signif_intercept1 and signif_intercept2:  # intercept is significant for both
+            # non-overlapping C.I. for intercept
+            if confint1[1].Intercept < confint2[0].Intercept-1e-3 or confint1[0].Intercept-1e-3 > confint2[1].Intercept:
                 return False
-        elif signif_intercept1 or signif_intercept2: # intercept is significant for only one
+        elif signif_intercept1 or signif_intercept2:  # intercept is significant for only one
             return False
-        if signif_slope1 and signif_slope2: # slope is significant for both
-            if confint1[1].x < confint2[0].x-1e-3 or confint1[0].x-1e-3 > confint2[1].x: # non-overlapping C.I. for slope
+        if signif_slope1 and signif_slope2:  # slope is significant for both
+            # non-overlapping C.I. for slope
+            if confint1[1].x < confint2[0].x-1e-3 or confint1[0].x-1e-3 > confint2[1].x:
                 return False
         elif signif_slope1 or signif_slope2:
             return False
@@ -378,24 +394,24 @@ class Leaf(AbstractReg):
         '''Return the residual sum of squares (RSS) of the linear regression y = αx + β.
         See https://stats.stackexchange.com/a/333431/196336'''
         try:
-            a  = self.coeff
-            b  = self.intercept
-            x  = self.x.sum
-            y  = self.y.sum
+            a = self.coeff
+            b = self.intercept
+            x = self.x.sum
+            y = self.y.sum
             x2 = self.x2.sum
             y2 = self.y2.sum
             xy = self.xy.sum
-            return (+y2\
-                    -2*(a*xy + b*y)\
-                    +(a**2*x2 + 2*a*b*x + len(self)*b**2)
-            )
+            return (+y2
+                    - 2*(a*xy + b*y)
+                    + (a**2*x2 + 2*a*b*x + len(self)*b**2)
+                    )
         except ZeroDivisionError:
             return float('inf')
 
     @property
     def nb_params(self):
         '''Return the number of parameters of the model.'''
-        return 3 # only three parameters: slope, intercept and standard deviation of the residuals (we assume they follow a normal distribution of mean 0)
+        return 3  # only three parameters: slope, intercept and standard deviation of the residuals (we assume they follow a normal distribution of mean 0)
 
     @property
     def error(self):
@@ -410,7 +426,7 @@ class Leaf(AbstractReg):
             if self.MSE < 0:
                 return 0
             else:
-                return self.MSE** (1/2)
+                return self.MSE ** (1/2)
 
     def predict(self, x):
         '''Return a prediction of y for the variable x by using the linear regression y = αx + β.'''
@@ -454,17 +470,18 @@ class Leaf(AbstractReg):
 
     def simplify(self):
         '''Does nothing.'''
-        return self # nothing to do
+        return self  # nothing to do
 
     @property
     def breakpoints(self):
-        return [] # no breakpoints
+        return []  # no breakpoints
 
     def merge(self):
-        return self # nothing to do, already a single line
+        return self  # nothing to do, already a single line
 
     def compute_statsmodels_reg(self):
-        self.statsmodels_reg = statsmodels.ols(formula='y~x', data={'x': self.x.values,  'y': self.y.values }).fit()
+        self.statsmodels_reg = statsmodels.ols(
+            formula='y~x', data={'x': self.x.values,  'y': self.y.values}).fit()
 
     def compute_statsmodels_RSS(self):
         try:
@@ -473,9 +490,11 @@ class Leaf(AbstractReg):
             self.compute_statsmodels_reg()
         return self.statsmodels_reg.ssr
 
+
 class Node(AbstractReg):
     STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split', 'minsplit'])
+
     def __init__(self, left_node, right_node, *, no_check=False):
         '''Assumptions:
              - all the x values in left_node are lower than the x values in right_node,
@@ -501,7 +520,7 @@ class Node(AbstractReg):
     def __iter__(self):
         try:
             yield from itertools.chain(self.left, self.right.__reviter__())
-        except AttributeError: # right is *not* a leaf
+        except AttributeError:  # right is *not* a leaf
             yield from itertools.chain(self.left, self.right)
 
     @property
@@ -509,7 +528,7 @@ class Node(AbstractReg):
         '''Return the smallest element of the node (if the assumptions are satisfied.)'''
         try:
             return self.left.min
-        except AttributeError: # left is a leaf
+        except AttributeError:  # left is a leaf
             return self.left.first
 
     @property
@@ -517,7 +536,7 @@ class Node(AbstractReg):
         '''Return the largest element of the node (if the assumptions are satisfied.)'''
         try:
             return self.right.max
-        except AttributeError: # right is a leaf
+        except AttributeError:  # right is a leaf
             return self.right.first
 
     @property
@@ -531,7 +550,7 @@ class Node(AbstractReg):
     @property
     def nb_params(self):
         '''Return the number of parameters of the model.'''
-        return self.left.nb_params + self.right.nb_params + 1 # one additional parameter: the breakpoint
+        return self.left.nb_params + self.right.nb_params + 1  # one additional parameter: the breakpoint
 
     @property
     def error(self):
@@ -582,7 +601,7 @@ class Node(AbstractReg):
         assert len(self.left) > 0
         try:
             return self.left.max
-        except AttributeError: # left is a leaf
+        except AttributeError:  # left is a leaf
             return self.left.last
 
     @staticmethod
@@ -626,8 +645,8 @@ class Node(AbstractReg):
         '''Compute recursively the best fit for the dataset of this node, using a greedy algorithm. This can either be:
             - a leaf, representing a single linear regression,
             - a tree of nodes, representing a segmented linear regressions.'''
-        lowest_error  = self.error
-        lowest_index  = 0
+        lowest_error = self.error
+        lowest_index = 0
         new_errors = []
         i = 0
         while self.can_move:
@@ -638,17 +657,22 @@ class Node(AbstractReg):
                 lowest_error = self.error
                 lowest_split = self.split
                 lowest_index = i
-        if lowest_error < self.nosplit.error and not self.error_equal(lowest_error, self.nosplit.error): # TODO stopping criteria?
+        # TODO stopping criteria?
+        if lowest_error < self.nosplit.error and not self.error_equal(lowest_error, self.nosplit.error):
             while i > lowest_index:
                 i -= 1
                 self.move_backward()
             assert lowest_split == self.split
-            self.left = Node(self.left, Leaf([], [], config=self.config)).compute_best_fit(depth+1)
-            self.right = Node(Leaf([], [], config=self.config), self.right).compute_best_fit(depth+1)
-            self.errors = self.Error(self.nosplit.error, new_errors, lowest_error)
+            self.left = Node(self.left, Leaf(
+                [], [], config=self.config)).compute_best_fit(depth+1)
+            self.right = Node(Leaf([], [], config=self.config),
+                              self.right).compute_best_fit(depth+1)
+            self.errors = self.Error(
+                self.nosplit.error, new_errors, lowest_error)
             return self
         else:
-            self.nosplit.errors = self.Error(self.nosplit.error, new_errors, lowest_error)
+            self.nosplit.errors = self.Error(
+                self.nosplit.error, new_errors, lowest_error)
             return self.nosplit
 
     def predict(self, x):
@@ -664,7 +688,8 @@ class Node(AbstractReg):
         this node becomes a Leaf containing the union of the two leaves.'''
         left = self.left.simplify()
         right = self.right.simplify()
-        if type(self.right) != type(right): # keeping the property that right leaves are in reverse order
+        # keeping the property that right leaves are in reverse order
+        if type(self.right) != type(right):
             right.x.values = list(reversed(right.x.values))
             right.y.values = list(reversed(right.y.values))
         if isinstance(left, Leaf) and isinstance(right, Leaf):
@@ -685,16 +710,20 @@ class Node(AbstractReg):
     def merge(self):
         return self.left.merge() + self.right.merge()
 
+
 class Config:
     allowed_modes = ('AIC', 'BIC', 'RSS')
+
     def __init__(self, mode, epsilon):
         if mode not in self.allowed_modes:
-            raise ValueError('Unknown mode %s. Authorized modes: %s.' % (mode, ', '.join(self.allowed_modes)))
+            raise ValueError('Unknown mode %s. Authorized modes: %s.' %
+                             (mode, ', '.join(self.allowed_modes)))
         self.mode = mode
         self.epsilon = epsilon
 
     def __eq__(self, other):
         return self is other or (self.mode == other.mode and self.epsilon == other.epsilon)
+
 
 def compute_regression(x, y=None, *, simplify=False, mode='BIC', epsilon=None):
     '''Compute a segmented linear regression.
@@ -715,7 +744,8 @@ def compute_regression(x, y=None, *, simplify=False, mode='BIC', epsilon=None):
     else:
         epsilon = min([abs(yy) for yy in y])
     config = Config(mode, epsilon)
-    reg = Node(Leaf(x, y, config=config), Leaf([], [], config=config)).compute_best_fit()
+    reg = Node(Leaf(x, y, config=config), Leaf(
+        [], [], config=config)).compute_best_fit()
     if statsmodels and simplify:
         reg = reg.simplify()
     return reg
