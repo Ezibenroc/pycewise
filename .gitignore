@@ -5,3 +5,4 @@ dist
 build
 pytree/version.py
 Pipfile.lock
+.mypy_cache
