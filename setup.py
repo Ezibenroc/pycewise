@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 
 import sys
-from distutils.core import setup
+from setuptools import setup
 import subprocess
 
-VERSION = '0.0.0'
+VERSION = '0.0.1'
+
+
+class CommandError(Exception):
+    pass
 
 
 def run(args):
     proc = subprocess.Popen(args, stdout=subprocess.PIPE)
     stdout, stderr = proc.communicate()
     if proc.returncode != 0:
-        sys.exit('Error with the command %s.\n' % ' '.join(args))
+        raise CommandError('Error with the command %s.\n' % ' '.join(args))
     return stdout.decode('ascii').strip()
 
 
@@ -30,14 +34,27 @@ def write_version(filename, version_dict):
 
 
 if __name__ == '__main__':
-    write_version('pytree/version.py', {
-            '__version__': VERSION,
-            '__git_version__': git_version(),
-        })
+    try:
+        write_version('pytree/version.py', {
+                '__version__': VERSION,
+                '__git_version__': git_version(),
+            })
+    except CommandError as e:
+        if sys.argv[0] != '-c':
+            sys.exit(e)
     setup(name='pytree',
           version=VERSION,
           description='Simple implementation of model trees.',
           author='Tom Cornebize',
           author_email='tom.cornebize@gmail.com',
           packages=['pytree'],
+          url='https://github.com/Ezibenroc/pytree',
+          license='MIT',
+          classifiers=[
+              'License :: OSI Approved :: MIT License',
+              'Intended Audience :: Developers',
+              'Operating System :: POSIX :: Linux',
+              'Operating System :: MacOS :: MacOS X',
+              'Programming Language :: Python :: 3.6',
+          ],
           )
