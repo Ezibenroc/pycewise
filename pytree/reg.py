@@ -213,11 +213,10 @@ class AbstractReg(ABC, Generic[Number]):
         Should be a bit more precise than the RSS property, but O(n) duration.'''
         return sum([(y - self.predict(x))**2 for x, y in self])
 
-    def __plot_reg(self, color: str='red', log: bool=False) -> None:
+    def __plot_reg(self, color='red', log=False):
         # cannot use self.min, only Node objects have it
         min_x = math.floor(min(self)[0])
         max_x = math.ceil(max(self)[0])
-        cls = min_x.__class__
         breaks = [min_x, *self.breakpoints, max_x]
         for i in range(len(breaks)-1):
             new_x = []
@@ -233,26 +232,26 @@ class AbstractReg(ABC, Generic[Number]):
                 else:
                     x_i = start
                 while x_i < stop:
-                    new_x.append(cls(x_i))
+                    new_x.append(x_i)
                     x_i *= 1.5  # TODO find a better factor
             else:
                 step = (stop-start)/1000
                 x_i = start
                 while x_i < stop:
-                    new_x.append(cls(x_i))
+                    new_x.append(x_i)
                     x_i += step
             new_x.append(stop)
             new_y = [self.predict(d) for d in new_x]
             plt.plot(new_x, new_y, '-', color=color)
 
-    def __show_plot(self, log: bool, log_x: bool, log_y: bool) -> None:
+    def __show_plot(self, log, log_x, log_y):
         if log or log_x:
             plt.xscale('log')
         if log or log_y:
             plt.yscale('log')
         plt.show()
 
-    def plot_dataset(self, log: bool=False, log_x: bool=False, log_y: bool=False, alpha: float=0.5) -> None:
+    def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5):
         data = list(self)
         x = [d[0] for d in data]
         y = [d[1] for d in data]
