@@ -297,7 +297,7 @@ class AbstractReg(ABC, Generic[Number]):
         pass
 
 
-class Leaf(AbstractReg, Generic[Number]):
+class Leaf(AbstractReg[Number]):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
     Pairs can be added or removed (see methods add/pop) to the collection in any order.
     Several aggregated values can be obtained in constant time (e.g. covariance, coefficient and intercept
@@ -474,7 +474,7 @@ class Leaf(AbstractReg, Generic[Number]):
             if self.MSE < 0:
                 return 0.0
             else:
-                return self.MSE ** (1/2)
+                return float(self.MSE) ** (1/2)
 
     def predict(self, x: Number) -> Number:
         '''Return a prediction of y for the variable x by using the linear regression y = αx + β.'''
@@ -542,7 +542,7 @@ class Leaf(AbstractReg, Generic[Number]):
         return self.statsmodels_reg.ssr
 
 
-class Node(AbstractReg, Generic[Number]):
+class Node(AbstractReg[Number]):
     STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split', 'minsplit'])
 
