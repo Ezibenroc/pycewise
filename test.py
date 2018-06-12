@@ -13,7 +13,7 @@ import matplotlib as mpl
 if os.environ.get('DISPLAY', '') == '':
     print('No display found. Using non-interactive Agg backend.')
     mpl.use('Agg')
-from pytree import Node, Leaf, IncrementalStat, compute_regression, Config # noqa: 402
+from pytree import Node, Leaf, IncrementalStat, compute_regression, Config, FlatRegression # noqa: 402
 
 DEFAULT_MODE = 'BIC'
 
@@ -354,6 +354,67 @@ class NodeTest(unittest.TestCase):
         reg.plot_error(log=True)
         reg.plot_error(log_x=True)
         reg.plot_error(log_y=True)
+
+
+class FlatRegressionTest(unittest.TestCase):
+
+    def assertAlmostIncluded(self, sub_sequence, sequence, epsilon=1e-2):
+        for elt in sub_sequence:
+            is_in = False
+            for ref in sequence:
+                if abs(elt-ref) < epsilon:
+                    is_in = True
+                    break
+            if not is_in:
+                self.fail('Element %s is not in sequence %s (with ε=%f).' %
+                          (elt, sequence, epsilon))
+
+    def generic_multiplesplits(self, cls, repeat):
+        self.maxDiff = None
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(
+            i-1)*10, max_x=i*10, cls=cls, repeat=repeat) for i in range(1, 9)]
+        dataset = sum(all_datasets, [])
+        reg = compute_regression(dataset)
+        flat_reg = reg.flatify()
+        self.assertEqual(list(flat_reg), list(sorted(dataset)))
+        # TODO should be 7, but is 8 in reality because of the non-optimality of the algorithm
+        self.assertEqual(reg.nb_params, flat_reg.nb_params)
+        self.assertEqual(reg.breakpoints, flat_reg.breakpoints)
+        self.assertIn(len(flat_reg.breakpoints), (7, 8))
+        self.assertAlmostIncluded(
+            range(10, 80, 10), flat_reg.breakpoints, epsilon=2)
+        for x, y in dataset:
+            prediction = flat_reg.predict(x)
+            self.assertAlmostEqual(y, prediction)
+
+    def test_multiple_splits(self):
+        self.generic_multiplesplits(float, 1)
+        self.generic_multiplesplits(float, 10)
+
+    def test_multiple_splits_decimal(self):
+        self.generic_multiplesplits(Decimal, 1)
+
+    def test_multiple_splits_fraction(self):
+        self.generic_multiplesplits(Fraction, 1)
+
+    def test_repr(self):
+        config = Config(mode='BIC', epsilon=1e-6)
+        data = {}
+        for i in range(1, 5):
+            data[i] = generate_dataset(
+                intercept=i, coeff=i, size=100, min_x=i*100, max_x=(i+1)*100) + [((i+1)*100, (i+1)*100*i+i)]
+        dataset = data[1] + data[2] + data[3] + data[4]
+        reg = FlatRegression([d[0] for d in dataset], [d[1] for d in dataset], config, [200, 300, 400])
+        expected = '\n'.join([
+            '-inf < x ≤ 2.000e+02',
+            '\ty ~ 1.000e+00x + 1.000e+00',
+            '2.000e+02 < x ≤ 3.000e+02',
+            '\ty ~ 2.000e+00x + 2.000e+00',
+            '3.000e+02 < x ≤ 4.000e+02',
+            '\ty ~ 3.000e+00x + 3.000e+00',
+            '4.000e+02 < x ≤ inf',
+            '\ty ~ 4.000e+00x + 4.000e+00'])
+        self.assertEqual(expected, str(reg))
 
 
 if __name__ == "__main__":

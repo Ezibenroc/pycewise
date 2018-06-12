@@ -759,6 +759,7 @@ class Node(AbstractReg[Number]):
 
 class FlatRegression(AbstractReg[Number]):
     def __init__(self, x: List[Number], y: List[Number], config: Config, breakpoints: List[Number]) -> None:
+        self.config = config
         assert len(x) == len(y)
         assert list(sorted(set(breakpoints))) == breakpoints
         intervals: List[Tuple[Union[float, Number], Union[float, Number]]] = []
@@ -774,7 +775,7 @@ class FlatRegression(AbstractReg[Number]):
         for min_x, max_x in intervals:
             subx, suby = [], []
             for xx, yy in points:
-                if min_x <= xx <= max_x:
+                if min_x < xx <= max_x:
                     subx.append(xx)
                     suby.append(yy)
             self.segments.append(((min_x, max_x), Leaf(subx, suby, config=config)))
@@ -782,7 +783,7 @@ class FlatRegression(AbstractReg[Number]):
     def __repr__(self) -> str:
         result = []
         for (min_x, max_x), reg in self.segments:
-            condition = '%.3e ≤ x ≤ %.3e' % (float(min_x), float(max_x))
+            condition = '%.3e < x ≤ %.3e' % (float(min_x), float(max_x))
             result.append('%s\n\t%s' % (condition, str(reg)))
         return '\n'.join(result)
 
@@ -822,7 +823,7 @@ class FlatRegression(AbstractReg[Number]):
     def predict(self, x: Number) -> Number:
         '''Return a prediction of y for the variable x by using the piecewise linear regression.'''
         for (min_x, max_x), leaf in self.segments:
-            if min_x <= x <= max_x:
+            if min_x < x <= max_x:
                 break
         return leaf.predict(x)
 
