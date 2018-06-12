@@ -380,6 +380,7 @@ class FlatRegressionTest(unittest.TestCase):
         # TODO should be 7, but is 8 in reality because of the non-optimality of the algorithm
         self.assertEqual(reg.nb_params, flat_reg.nb_params)
         self.assertEqual(reg.breakpoints, flat_reg.breakpoints)
+        self.assertTrue(flat_reg.null_RSS)
         self.assertIn(len(flat_reg.breakpoints), (7, 8))
         self.assertAlmostIncluded(
             range(10, 80, 10), flat_reg.breakpoints, epsilon=2)
@@ -415,6 +416,17 @@ class FlatRegressionTest(unittest.TestCase):
             '4.000e+02 < x ≤ inf',
             '\ty ~ 4.000e+00x + 4.000e+00'])
         self.assertEqual(expected, str(reg))
+
+    @mock.patch("matplotlib.pyplot.show")
+    def test_plot_dataset(self, mock_show):
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(
+            i-1)*10, max_x=i*10) for i in range(1, 9)]
+        dataset = sum(all_datasets, [])
+        reg = compute_regression(dataset)
+        reg.plot_dataset()
+        reg.plot_dataset(log=True)
+        reg.plot_dataset(log_x=True)
+        reg.plot_dataset(log_y=True)
 
 
 if __name__ == "__main__":
