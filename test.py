@@ -387,6 +387,8 @@ class FlatRegressionTest(unittest.TestCase):
         for x, y in dataset:
             prediction = flat_reg.predict(x)
             self.assertAlmostEqual(y, prediction)
+        other_flat = compute_regression(dataset, breakpoints=flat_reg.breakpoints)
+        self.assertEqual(str(other_flat), str(flat_reg))
 
     def test_multiple_splits(self):
         self.generic_multiplesplits(float, 1)

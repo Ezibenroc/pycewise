@@ -834,7 +834,7 @@ class FlatRegression(AbstractReg[Number]):
         return leaf
 
 
-def compute_regression(x, y=None, *, simplify=False, mode='BIC', epsilon=None):
+def compute_regression(x, y=None, *, breakpoints=None, simplify=False, mode='BIC', epsilon=None):
     '''Compute a segmented linear regression.
     The data can be given either as a tuple of two lists, or a list of tuples (each one of size 2).
     The first values represent the x, the second values represent the y.
@@ -853,6 +853,8 @@ def compute_regression(x, y=None, *, simplify=False, mode='BIC', epsilon=None):
     else:
         epsilon = min([abs(yy) for yy in y])
     config = Config(mode, epsilon)
+    if breakpoints:
+        return FlatRegression(x, y, config=config, breakpoints=breakpoints)
     reg = Node(Leaf(x, y, config=config), Leaf(
         [], [], config=config)).compute_best_fit()
     if statsmodels and simplify:
