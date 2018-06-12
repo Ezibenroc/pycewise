@@ -15,7 +15,7 @@ if os.environ.get('DISPLAY', '') == '':
     mpl.use('Agg')
 from pytree import Node, Leaf, IncrementalStat, compute_regression, Config # noqa: 402
 
-DEFAULT_MODE = 'RSS'
+DEFAULT_MODE = 'BIC'
 
 
 def generate_dataset(intercept, coeff, size, min_x, max_x, cls=float, repeat=1):

@@ -4,7 +4,7 @@ import math
 import sys
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from typing import TypeVar, Generic, List, Generator, Callable, Union, Tuple, Dict
 try:
@@ -28,7 +28,7 @@ ExtNumber = Union[Number, int]
 
 
 class Config:
-    allowed_modes = ('AIC', 'BIC', 'RSS')
+    allowed_modes = ('AIC', 'BIC')
 
     def __init__(self, mode: str, epsilon: float) -> None:
         if mode not in self.allowed_modes:
@@ -153,11 +153,8 @@ class AbstractReg(ABC, Generic[Number]):
         return self.RSS <= 0 or math.isclose(self.RSS, 0, abs_tol=self.config.epsilon**2)
 
     def error_equal(self, a: Number, b: Number) -> bool:
-        if self.config.mode == 'RSS':
-            eps = self.config.epsilon**2
-        else:
-            assert self.config.mode in ('BIC', 'AIC')
-            eps = abs(math.log2(self.config.epsilon**2))
+        assert self.config.mode in ('BIC', 'AIC')
+        eps = abs(math.log2(self.config.epsilon**2))
         return math.isclose(a, b, abs_tol=eps)
 
     @property
@@ -171,9 +168,16 @@ class AbstractReg(ABC, Generic[Number]):
         pass
 
     @property
-    @abstractmethod
     def error(self) -> float:
-        pass
+        '''Return an error, depending on the chosen mode. Lowest is better.'''
+        try:
+            if self.config.mode == 'AIC':
+                return self.AIC
+            else:
+                assert self.config.mode == 'BIC'
+                return self.BIC
+        except (AssertionError, InvalidOperation):
+            return float('inf')
 
     @abstractmethod
     def predict(self, x: Number) -> Number:
@@ -460,22 +464,6 @@ class Leaf(AbstractReg[Number]):
         '''
         return 3
 
-    @property
-    def error(self) -> float:
-        '''Return an error, depending on the chosen mode. Lowest is better.'''
-        if self.std_x == 0:
-            return float('inf')
-        elif self.config.mode == 'AIC':
-            return self.AIC
-        elif self.config.mode == 'BIC':
-            return self.BIC
-        else:
-            assert self.config.mode == 'RSS'
-            if self.MSE < 0:
-                return 0.0
-            else:
-                return float(self.MSE) ** (1/2)
-
     def predict(self, x: Number) -> Number:
         '''Return a prediction of y for the variable x by using the linear regression y = αx + β.'''
         return self.coeff*x + self.intercept
@@ -606,19 +594,6 @@ class Node(AbstractReg[Number]):
     def nb_params(self) -> int:
         '''Return the number of parameters of the model.'''
         return self.left.nb_params + self.right.nb_params + 1  # one additional parameter: the breakpoint
-
-    @property
-    def error(self) -> float:
-        '''Return an error, depending on the chosen mode. Lowest is better.'''
-        if len(self.left) <= 1 or len(self.right) <= 1:
-            return float('inf')
-        elif self.config.mode == 'AIC':
-            return self.AIC
-        elif self.config.mode == 'BIC':
-            return self.BIC
-        else:
-            assert self.config.mode == 'RSS'
-            return len(self.left)/len(self)*self.left.error + len(self.right)/len(self)*self.right.error
 
     def move_left_to_right(self) -> None:
         '''Move the last element(s) of the left node to the right node.'''
@@ -772,6 +747,90 @@ class Node(AbstractReg[Number]):
 
     def merge(self):
         return self.left.merge() + self.right.merge()
+
+    def flatify(self):
+        all_x = []
+        all_y = []
+        for x, y in self:
+            all_x.append(x)
+            all_y.append(y)
+        return FlatRegression(all_x, all_y, config=self.config, breakpoints=self.breakpoints)
+
+
+class FlatRegression(AbstractReg[Number]):
+    def __init__(self, x: List[Number], y: List[Number], config: Config, breakpoints: List[Number]) -> None:
+        assert len(x) == len(y)
+        assert list(sorted(set(breakpoints))) == breakpoints
+        intervals: List[Tuple[Union[float, Number], Union[float, Number]]] = []
+        if len(breakpoints) == 0:
+            intervals.append((-float('inf'), float('inf')))
+        else:
+            intervals.append((-float('inf'), breakpoints[0]))
+            for i in range(len(breakpoints)-1):
+                intervals.append((breakpoints[i], breakpoints[i+1]))
+            intervals.append((breakpoints[-1], float('inf')))
+        self.segments: List[Tuple[Tuple[Union[float, Number], Union[float, Number]], Leaf[Number]]] = []
+        points = list(sorted(zip(x, y)))
+        for min_x, max_x in intervals:
+            subx, suby = [], []
+            for xx, yy in points:
+                if min_x <= xx <= max_x:
+                    subx.append(xx)
+                    suby.append(yy)
+            self.segments.append(((min_x, max_x), Leaf(subx, suby, config=config)))
+
+    def __repr__(self) -> str:
+        result = []
+        for (min_x, max_x), reg in self.segments:
+            condition = '%.3e ≤ x ≤ %.3e' % (float(min_x), float(max_x))
+            result.append('%s\n\t%s' % (condition, str(reg)))
+        return '\n'.join(result)
+
+    @property
+    def RSS(self) -> Number:
+        '''Return the residual sum of squares (RSS) of the segmented linear regression.'''
+        assert len(self.segments) > 0
+        rss = self.segments[0][1].RSS
+        for (_, _), leaf in self.segments[1:]:
+            rss += leaf.RSS
+        return rss
+
+    def __len__(self) -> int:
+        return sum(len(leaf) for (_, _), leaf in self.segments)
+
+    def __iter__(self) -> Generator[Tuple[Number, Number], None, None]:
+        for (_, _), leaf in self.segments:
+            yield from leaf
+
+    def _to_graphviz(self, dot: graphviz.Digraph) -> None:
+        dot.node(str(id(self)), str(self))
+
+    @property
+    def breakpoints(self):  # TODO typing
+        result = []
+        for (_, max_x), _ in self.segments[:-1]:
+            result.append(max_x)
+        return result
+
+    @property
+    def nb_params(self) -> int:
+        total = 0
+        for (_, _), leaf in self.segments:
+            total += leaf.nb_params + 1
+        return total - 1
+
+    def predict(self, x: Number) -> Number:
+        '''Return a prediction of y for the variable x by using the piecewise linear regression.'''
+        for (min_x, max_x), leaf in self.segments:
+            if min_x <= x <= max_x:
+                break
+        return leaf.predict(x)
+
+    def merge(self):
+        leaf = Leaf([], [], config=self.config)
+        for x, y in self:
+            leaf.add(x, y)
+        return leaf
 
 
 def compute_regression(x, y=None, *, simplify=False, mode='BIC', epsilon=None):
