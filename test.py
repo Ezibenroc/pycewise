@@ -356,6 +356,7 @@ class FlatRegressionTest(unittest.TestCase):
         self.assertEqual(reg.nb_params, flat_reg.nb_params)
         self.assertEqual(reg.breakpoints, flat_reg.breakpoints)
         self.assertTrue(flat_reg.null_RSS)
+        self.assertTrue(flat_reg.rss_equal(flat_reg.RSS, 0))
         self.assertIn(len(flat_reg.breakpoints), (7, 8))
         self.assertAlmostIncluded(
             range(10, 80, 10), flat_reg.breakpoints, epsilon=2)
@@ -404,6 +405,38 @@ class FlatRegressionTest(unittest.TestCase):
         reg.plot_dataset(log=True)
         reg.plot_dataset(log_x=True)
         reg.plot_dataset(log_y=True)
+
+    def generic_multiplesplits_simplify(self, cls, repeat):
+        self.maxDiff = None
+        all_datasets = [generate_dataset(intercept=i, coeff=i, size=50, min_x=(
+            i-1)*10, max_x=i*10, cls=cls, repeat=repeat) for i in range(1, 9)]
+        dataset = sum(all_datasets, [])
+        reg = compute_regression(dataset)
+        merged = reg.merge()
+        simple_df = reg.simplify()
+        self.assertEqual(len(simple_df), len(reg.breakpoints)+1)
+        self.assertEqual(list(simple_df.nb_breakpoints), list(range(len(reg.breakpoints), -1, -1)))
+        self.assertTrue(reg.rss_equal(reg.RSS, simple_df.RSS[0]))
+        self.assertTrue(reg.rss_equal(list(simple_df.RSS)[-1], merged.RSS))
+        self.assertTrue(reg.error_equal(reg.BIC, simple_df.BIC[0]))
+        self.assertTrue(reg.error_equal(list(simple_df.BIC)[-1], merged.BIC))
+        for old_rss, new_rss in zip(simple_df.RSS, simple_df.RSS[1:]):
+            if not reg.rss_equal(old_rss, new_rss):
+                self.assertLess(old_rss, new_rss)
+        for nb_breakpoints, new_reg in zip(simple_df.nb_breakpoints, simple_df.regression):
+            self.assertEqual(list(reg), list(new_reg))
+            self.assertEqual(nb_breakpoints, len(new_reg.breakpoints))
+            self.assertTrue(set(new_reg.breakpoints) <= set(reg.breakpoints))
+
+    def test_multiple_splits_simplify(self):
+        self.generic_multiplesplits_simplify(float, 1)
+        self.generic_multiplesplits_simplify(float, 10)
+
+    def test_multiple_splits_decimal_simplify(self):
+        self.generic_multiplesplits_simplify(Decimal, 1)
+
+    def test_multiple_splits_fraction_simplify(self):
+        self.generic_multiplesplits_simplify(Fraction, 1)
 
 
 if __name__ == "__main__":

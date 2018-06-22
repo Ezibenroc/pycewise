@@ -8,6 +8,10 @@ from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from typing import TypeVar, Generic, List, Generator, Callable, Union, Tuple, Dict
 try:
+    import pandas
+except ImportError:
+    pandas = None
+try:
     import statsmodels.formula.api as statsmodels
 except ImportError:
     statsmodels = None
@@ -151,6 +155,9 @@ class AbstractReg(ABC, Generic[Number]):
     @property
     def null_RSS(self) -> bool:
         return self.RSS <= 0 or math.isclose(self.RSS, 0, abs_tol=self.config.epsilon**2)
+
+    def rss_equal(self, a: Number, b: Number) -> bool:
+        return math.isclose(a, b, abs_tol=self.config.epsilon**2)
 
     def error_equal(self, a: Number, b: Number) -> bool:
         assert self.config.mode in ('BIC', 'AIC')
@@ -492,6 +499,9 @@ class Leaf(AbstractReg[Number]):
             self.compute_statsmodels_reg()
         return self.statsmodels_reg.ssr
 
+    def simplify(self):
+        return self
+
 
 class Node(AbstractReg[Number]):
     STR_LJUST = 30
@@ -698,6 +708,9 @@ class Node(AbstractReg[Number]):
             all_y.append(y)
         return FlatRegression(all_x, all_y, config=self.config, breakpoints=self.breakpoints)
 
+    def simplify(self):
+        return self.flatify().simplify()
+
 
 class FlatRegression(AbstractReg[Number]):
     def __init__(self, x: List[Number], y: List[Number], config: Config, breakpoints: List[Number]) -> None:
@@ -774,6 +787,36 @@ class FlatRegression(AbstractReg[Number]):
         for x, y in self:
             leaf.add(x, y)
         return leaf
+
+    def simplify(self):
+        all_regressions = [self]
+        while True:
+            min_rss = float('inf')
+            min_i = -1
+            new_reg = deepcopy(all_regressions[-1])
+            if len(new_reg.segments) <= 1:
+                break
+            for i in range(len(new_reg.segments)-1):
+                (left_min, left_max), left_leaf = new_reg.segments[i]
+                (right_min, right_max), right_leaf = new_reg.segments[i+1]
+                rss = (left_leaf + right_leaf).RSS - (left_leaf.RSS + right_leaf.RSS)
+                if rss < min_rss:
+                    min_rss = rss
+                    min_i = i
+            (left_min, left_max), left_leaf = new_reg.segments[min_i]
+            (right_min, right_max), right_leaf = new_reg.segments[min_i+1]
+            new_reg.segments.pop(min_i+1)
+            new_reg.segments[min_i] = (left_min, right_max), (left_leaf + right_leaf)
+            all_regressions.append(new_reg)
+        result = [{'regression': reg,
+                   'RSS': reg.RSS,
+                   'BIC': reg.BIC,
+                   'nb_breakpoints': len(reg.breakpoints)}
+                  for reg in all_regressions]
+        if pandas is not None:
+            return pandas.DataFrame(result)
+        else:
+            return result
 
 
 def compute_regression(x, y=None, *, breakpoints=None, mode='BIC', epsilon=None):
