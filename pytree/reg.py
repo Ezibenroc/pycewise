@@ -345,43 +345,6 @@ class Leaf(AbstractReg[Number]):
         y2 = other.y.values
         return self.__class__(x1+list(reversed(x2)), y1+list(reversed(y2)), config=self.config)
 
-    def __eq__(self, other):
-        '''Return True if the two Leaf instances are not *significantly* different.
-        They are significantly different if (at least) one of the conditions holds:
-            - One and only one of the two intercepts   is significant.
-            - One and only one of the two coefficients is significant.
-            - Both intercepts   are significant and their confidence intervals do not overlap.
-            - Both coefficients are significant and their confidence intervals do not overlap.
-        '''
-        if not isinstance(other, self.__class__):
-            return False
-        if len(self) <= 5 or len(other) <= 5:  # too few points anyway...
-            return True
-        pvalues_thresh = 1e-3
-        reg1 = statsmodels.ols(formula='y~x', data={
-                               'x': self.x.values,  'y': self.y.values}).fit()
-        confint1 = reg1.conf_int(alpha=0.05, cols=None)
-        reg2 = statsmodels.ols(formula='y~x', data={
-                               'x': other.x.values, 'y': other.y.values}).fit()
-        confint2 = reg2.conf_int(alpha=0.05, cols=None)
-        signif_intercept1 = reg1.pvalues.Intercept < pvalues_thresh
-        signif_intercept2 = reg2.pvalues.Intercept < pvalues_thresh
-        signif_slope1 = reg1.pvalues.x < pvalues_thresh
-        signif_slope2 = reg2.pvalues.x < pvalues_thresh
-        if signif_intercept1 and signif_intercept2:  # intercept is significant for both
-            # non-overlapping C.I. for intercept
-            if confint1[1].Intercept < confint2[0].Intercept-1e-3 or confint1[0].Intercept-1e-3 > confint2[1].Intercept:
-                return False
-        elif signif_intercept1 or signif_intercept2:  # intercept is significant for only one
-            return False
-        if signif_slope1 and signif_slope2:  # slope is significant for both
-            # non-overlapping C.I. for slope
-            if confint1[1].x < confint2[0].x-1e-3 or confint1[0].x-1e-3 > confint2[1].x:
-                return False
-        elif signif_slope1 or signif_slope2:
-            return False
-        return True
-
     @property
     def first(self) -> Number:
         '''Return the first element x that was added to the collection.'''

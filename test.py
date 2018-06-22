@@ -178,30 +178,6 @@ class LeafTest(unittest.TestCase):
                                                 for d in dataset2], config=self.config)
         self.assertNotEqual(leaf1, leaf2)
 
-    def test_eq(self):
-        intercept = random.uniform(0, 100)
-        coeff = random.uniform(0, 100)
-        size = random.randint(50, 100)
-        self.assert_equal_reg(generate_dataset(intercept, coeff, size, 0, 100),
-                              generate_dataset(intercept, coeff, size, 0, 100))
-        self.assert_equal_reg(generate_dataset(intercept, coeff, size, 0, 100),
-                              generate_dataset(intercept, coeff, size, 1000, 2000))
-
-    def test_neq(self):
-        intercept = random.uniform(10, 100)
-        coeff = random.uniform(10, 100)
-        size = random.randint(50, 100)
-        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
-                                 generate_dataset(intercept*2, coeff, size, 0, 100))
-        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
-                                 generate_dataset(intercept, coeff*2, size, 0, 100))
-        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
-                                 generate_dataset(intercept*2, coeff*2, size, 0, 100))
-        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
-                                 generate_dataset(0, coeff, size, 0, 100))
-        self.assert_notequal_reg(generate_dataset(intercept, coeff, size, 0, 100),
-                                 generate_dataset(intercept, 0, size, 0, 100))
-
     def test_repr(self):
         self.assertEqual(str(Leaf([], [], self.config)), '⊥')
         x, y = zip(*generate_dataset(intercept=3,
