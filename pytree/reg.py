@@ -343,7 +343,11 @@ class Leaf(AbstractReg[Number]):
         y1 = self.y.values
         x2 = other.x.values
         y2 = other.y.values
-        return self.__class__(x1+list(reversed(x2)), y1+list(reversed(y2)), config=self.config)
+        if x2[0] > x2[-1]:
+            assert y2[0] > y2[-1]
+            x2 = list(reversed(x2))
+            y2 = list(reversed(y2))
+        return self.__class__(x1+x2, y1+y2, config=self.config)
 
     @property
     def first(self) -> Number:

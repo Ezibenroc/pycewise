@@ -154,15 +154,14 @@ class LeafTest(unittest.TestCase):
 
     def test_plus(self):
         l1 = Leaf(range(10), range(10), config=self.config)
-        l2 = Leaf(range(10, 20), range(10, 20), config=self.config)
-        leaf = l1 + l2
-        self.assertAlmostEqual(leaf.intercept, 0)
-        self.assertAlmostEqual(leaf.coeff, 1)
-        self.assertAlmostEqual(leaf.MSE, 0)
-        self.assertEqual(leaf.x.values, l1.x.values +
-                         list(reversed(l2.x.values)))
-        self.assertEqual(leaf.y.values, l1.y.values +
-                         list(reversed(l2.y.values)))
+        for l2 in [Leaf(range(21, 11, -1), range(21, 11, -1), config=self.config),
+                   Leaf(range(10, 20), range(10, 20), config=self.config)]:
+            leaf = l1 + l2
+            self.assertAlmostEqual(leaf.intercept, 0)
+            self.assertAlmostEqual(leaf.coeff, 1)
+            self.assertAlmostEqual(leaf.MSE, 0)
+            self.assertEqual(leaf.x.values, list(sorted(l1.x.values + l2.x.values)))
+            self.assertEqual(leaf.x.values, list(sorted(l1.y.values + l2.y.values)))
 
     def assert_equal_reg(self, dataset1, dataset2):
         leaf1 = Leaf([d[0] for d in dataset1], [d[1]
