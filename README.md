@@ -12,4 +12,4 @@ python3 setup.py install --user
 
 ## Usage
 
-See the notebook [demo.ipynb](demo.ipynb).
+See the notebooks [demo.ipynb](demo.ipynb) and [advanced_features.ipynb](advanced_features.ipynb).
