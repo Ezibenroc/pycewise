@@ -507,10 +507,6 @@ class Leaf(AbstractReg[Number]):
             result.append((x2, y2))
         return result
 
-    def simplify(self):
-        '''Does nothing.'''
-        return self  # nothing to do
-
     @property
     def breakpoints(self) -> List[Number]:
         return []  # no breakpoints
@@ -720,27 +716,6 @@ class Node(AbstractReg[Number]):
         else:
             return self.right.predict(x)
 
-    def simplify(self):
-        '''Recursively simplify the tree (if possible).
-        If two leaves of a same node are considered equal (see Leaf.__eq__ method), then they are merged:
-        this node becomes a Leaf containing the union of the two leaves.'''
-        left = self.left.simplify()
-        right = self.right.simplify()
-        # keeping the property that right leaves are in reverse order
-        if type(self.right) != type(right):
-            right.x.values = list(reversed(right.x.values))
-            right.y.values = list(reversed(right.y.values))
-        if isinstance(left, Leaf) and isinstance(right, Leaf):
-            merge = left + right
-            if left == right or merge == left or merge == right:
-                result = merge
-            else:
-                result = Node(left, right)
-        else:
-            result = Node(left, right)
-        result.errors = self.errors
-        return result
-
     @property
     def breakpoints(self) -> List[Number]:
         return self.left.breakpoints + [self.split] + self.right.breakpoints
@@ -834,7 +809,7 @@ class FlatRegression(AbstractReg[Number]):
         return leaf
 
 
-def compute_regression(x, y=None, *, breakpoints=None, simplify=False, mode='BIC', epsilon=None):
+def compute_regression(x, y=None, *, breakpoints=None, mode='BIC', epsilon=None):
     '''Compute a segmented linear regression.
     The data can be given either as a tuple of two lists, or a list of tuples (each one of size 2).
     The first values represent the x, the second values represent the y.
@@ -857,6 +832,4 @@ def compute_regression(x, y=None, *, breakpoints=None, simplify=False, mode='BIC
         return FlatRegression(x, y, config=config, breakpoints=breakpoints)
     reg = Node(Leaf(x, y, config=config), Leaf(
         [], [], config=config)).compute_best_fit()
-    if statsmodels and simplify:
-        reg = reg.simplify()
     return reg
