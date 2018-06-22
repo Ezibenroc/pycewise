@@ -427,6 +427,11 @@ class FlatRegressionTest(unittest.TestCase):
             self.assertEqual(list(reg), list(new_reg))
             self.assertEqual(nb_breakpoints, len(new_reg.breakpoints))
             self.assertTrue(set(new_reg.breakpoints) <= set(reg.breakpoints))
+        simple_reg = reg.auto_simplify()
+        expected_reg = simple_df.regression[1]
+        self.assertEqual(simple_reg.breakpoints, expected_reg.breakpoints)
+        self.assertEqual(simple_reg.RSS, expected_reg.RSS)
+        self.assertEqual(simple_reg.BIC, expected_reg.BIC)
 
     def test_multiple_splits_simplify(self):
         self.generic_multiplesplits_simplify(float, 1)

@@ -307,6 +307,20 @@ class AbstractReg(ABC, Generic[Number]):
     def _to_graphviz(self, dot: graphviz.Digraph) -> None:
         pass
 
+    def flatify(self):
+        all_x = []
+        all_y = []
+        for x, y in self:
+            all_x.append(x)
+            all_y.append(y)
+        return FlatRegression(all_x, all_y, config=self.config, breakpoints=self.breakpoints)
+
+    def simplify(self):
+        return self.flatify().simplify()
+
+    def auto_simplify(self):
+        return self.flatify().auto_simplify()
+
 
 class Leaf(AbstractReg[Number]):
     '''Represent a collection of pairs (x, y), where x is a control variable and y is a response variable.
@@ -498,9 +512,6 @@ class Leaf(AbstractReg[Number]):
         except AttributeError:
             self.compute_statsmodels_reg()
         return self.statsmodels_reg.ssr
-
-    def simplify(self):
-        return self
 
 
 class Node(AbstractReg[Number]):
@@ -700,17 +711,6 @@ class Node(AbstractReg[Number]):
     def merge(self):
         return self.left.merge() + self.right.merge()
 
-    def flatify(self):
-        all_x = []
-        all_y = []
-        for x, y in self:
-            all_x.append(x)
-            all_y.append(y)
-        return FlatRegression(all_x, all_y, config=self.config, breakpoints=self.breakpoints)
-
-    def simplify(self):
-        return self.flatify().simplify()
-
 
 class FlatRegression(AbstractReg[Number]):
     def __init__(self, x: List[Number], y: List[Number], config: Config, breakpoints: List[Number]) -> None:
@@ -788,7 +788,7 @@ class FlatRegression(AbstractReg[Number]):
             leaf.add(x, y)
         return leaf
 
-    def simplify(self):
+    def __simplify(self):
         all_regressions = [self]
         while True:
             min_rss = float('inf')
@@ -811,12 +811,28 @@ class FlatRegression(AbstractReg[Number]):
         result = [{'regression': reg,
                    'RSS': reg.RSS,
                    'BIC': reg.BIC,
+                   'AIC': reg.AIC,
                    'nb_breakpoints': len(reg.breakpoints)}
                   for reg in all_regressions]
+        return result
+
+    def simplify(self):
+        result = self.__simplify()
         if pandas is not None:
             return pandas.DataFrame(result)
         else:
             return result
+
+    def auto_simplify(self):
+        result = self.__simplify()
+        min_error = float('inf')
+        min_reg = None
+        for res in result:
+            reg = res['regression']
+            if min_error > reg.error or reg.error_equal(min_error, self.error):
+                min_error = reg.error
+                min_reg = reg
+        return min_reg
 
 
 def compute_regression(x, y=None, *, breakpoints=None, mode='BIC', epsilon=None):
