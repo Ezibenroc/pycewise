@@ -1,7 +1,6 @@
 from collections import namedtuple, Counter
 import itertools
 import math
-import sys
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
@@ -15,8 +14,6 @@ try:
     import statsmodels.formula.api as statsmodels
 except ImportError:
     statsmodels = None
-    sys.stderr.write(
-        'WARNING: no module statsmodels, the tree will not be simplified.')
 try:
     import graphviz  # https://github.com/xflr6/graphviz
 except ImportError:
@@ -262,16 +259,16 @@ class AbstractReg(ABC, Generic[Number]):
             plt.yscale('log')
         plt.show()
 
-    def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5):
+    def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5, plot_merged_reg=False):
         data = list(self)
         x = [d[0] for d in data]
         y = [d[1] for d in data]
         plt.figure(figsize=(20, 20))
         plt.subplot(2, 1, 1)
         plt.plot(x, y, 'o', color='blue', alpha=alpha)
-        if len(self.breakpoints) > 0:
+        if len(self.breakpoints) > 0 and plot_merged_reg:
             self.merge().__plot_reg('black', log=log or log_x)
-        if isinstance(self, Node):
+        if isinstance(self, Node) and plot_merged_reg:
             xl, yl = zip(*self.left)
             xr, yr = zip(*reversed(list(self.right)))
             Node(Leaf(xl, yl, self.config), Leaf(xr, yr, self.config),
@@ -829,7 +826,7 @@ class FlatRegression(AbstractReg[Number]):
         min_reg = None
         for res in result:
             reg = res['regression']
-            if min_error > reg.error or reg.error_equal(min_error, self.error):
+            if min_error > reg.error or reg.error_equal(min_error, reg.error):
                 min_error = reg.error
                 min_reg = reg
         return min_reg

@@ -318,6 +318,7 @@ class NodeTest(unittest.TestCase):
         reg.plot_dataset(log=True)
         reg.plot_dataset(log_x=True)
         reg.plot_dataset(log_y=True)
+        reg.plot_dataset(plot_merged_reg=True)
 
     @mock.patch("matplotlib.pyplot.show")
     def test_plot_error(self, mock_show):
@@ -405,6 +406,7 @@ class FlatRegressionTest(unittest.TestCase):
         reg.plot_dataset(log=True)
         reg.plot_dataset(log_x=True)
         reg.plot_dataset(log_y=True)
+        reg.plot_dataset(plot_merged_reg=True)
 
     def generic_multiplesplits_simplify(self, cls, repeat):
         self.maxDiff = None
@@ -432,6 +434,9 @@ class FlatRegressionTest(unittest.TestCase):
         self.assertEqual(simple_reg.breakpoints, expected_reg.breakpoints)
         self.assertEqual(simple_reg.RSS, expected_reg.RSS)
         self.assertEqual(simple_reg.BIC, expected_reg.BIC)
+        # Checking that the auto_simplify() is a fix-point
+        new_reg = simple_reg.auto_simplify()
+        self.assertEqual(simple_reg.breakpoints, new_reg.breakpoints)
 
     def test_multiple_splits_simplify(self):
         self.generic_multiplesplits_simplify(float, 1)
