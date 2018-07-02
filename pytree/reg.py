@@ -282,11 +282,10 @@ class AbstractReg(ABC, Generic[Number]):
             plt.xscale('log')
         if log or log_y:
             plt.yscale('log')
-        plt.show()
 
     def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5, color=True, plot_merged_reg=False):
         if plt is None:
-            raise ImportError('Matploglib and/or palettable is not installed.')
+            raise ImportError('Matplotlib is not installed.')
         plt.figure(figsize=(20, 20))
         plt.subplot(2, 1, 1)
         self.__plot_points(alpha=alpha, color=color)
@@ -307,7 +306,7 @@ class AbstractReg(ABC, Generic[Number]):
 
     def plot_error(self, log=False, log_x=False, log_y=False, alpha=1):
         if plt is None:
-            raise ImportError('Matploglib and/or palettable is not installed.')
+            raise ImportError('Matplotlib is not installed.')
         plt.figure(figsize=(20, 20))
         plt.subplot(2, 1, 1)
         x = []
