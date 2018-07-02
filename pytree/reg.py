@@ -285,7 +285,7 @@ class AbstractReg(ABC, Generic[Number]):
 
     def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5, color=True, plot_merged_reg=False):
         if plt is None:
-            raise ImportError('Matplotlib is not installed.')
+            raise ImportError('No module named "matplotlib".')
         plt.figure(figsize=(20, 20))
         plt.subplot(2, 1, 1)
         self.__plot_points(alpha=alpha, color=color)
@@ -306,7 +306,7 @@ class AbstractReg(ABC, Generic[Number]):
 
     def plot_error(self, log=False, log_x=False, log_y=False, alpha=1):
         if plt is None:
-            raise ImportError('Matplotlib is not installed.')
+            raise ImportError('No module named "matplotlib".')
         plt.figure(figsize=(20, 20))
         plt.subplot(2, 1, 1)
         x = []
@@ -345,6 +345,22 @@ class AbstractReg(ABC, Generic[Number]):
 
     def auto_simplify(self):
         return self.flatify().auto_simplify()
+
+    def to_pandas(self):
+        if pandas is None:
+            raise ImportError('No module named "pandas".')
+        segments = []
+        for (min_x, max_x), leaf in self.flatify().segments:
+            segments.append({'min_x': min_x,
+                             'max_x': max_x,
+                             'intercept': leaf.intercept,
+                             'coefficient': leaf.coeff,
+                             'RSS': leaf.RSS,
+                             'MSE': leaf.MSE,
+                             'BIC': leaf.BIC,
+                             'AIC': leaf.AIC
+                             })
+        return pandas.DataFrame(segments)
 
 
 class Leaf(AbstractReg[Number]):
@@ -853,6 +869,9 @@ class FlatRegression(AbstractReg[Number]):
                 min_error = reg.error
                 min_reg = reg
         return min_reg
+
+    def flatify(self):
+        return self
 
 
 def compute_regression(x, y=None, *, breakpoints=None, mode='BIC', epsilon=None):

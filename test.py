@@ -443,6 +443,18 @@ class FlatRegressionTest(unittest.TestCase):
         # Checking that the auto_simplify() is a fix-point
         new_reg = simple_reg.auto_simplify()
         self.assertEqual(simple_reg.breakpoints, new_reg.breakpoints)
+        # Checking to_pandas method
+        df = new_reg.to_pandas()
+        self.assertEqual(len(df), len(new_reg.segments))
+        for (_, row), ((min_x, max_x), leaf) in zip(df.iterrows(), new_reg.segments):
+            self.assertEqual(row['min_x'], min_x)
+            self.assertEqual(row['max_x'], max_x)
+            self.assertEqual(row['intercept'], leaf.intercept)
+            self.assertEqual(row['coefficient'], leaf.coeff)
+            self.assertEqual(row['RSS'], leaf.RSS)
+            self.assertEqual(row['MSE'], leaf.MSE)
+            self.assertEqual(row['BIC'], leaf.BIC)
+            self.assertEqual(row['AIC'], leaf.AIC)
 
     def test_multiple_splits_simplify(self):
         self.generic_multiplesplits_simplify(float, 1)
