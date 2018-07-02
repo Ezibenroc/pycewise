@@ -357,8 +357,6 @@ class AbstractReg(ABC, Generic[Number]):
                              'coefficient': leaf.coeff,
                              'RSS': leaf.RSS,
                              'MSE': leaf.MSE,
-                             'BIC': leaf.BIC,
-                             'AIC': leaf.AIC
                              })
         return pandas.DataFrame(segments)
 

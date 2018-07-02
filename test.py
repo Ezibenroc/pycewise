@@ -453,8 +453,6 @@ class FlatRegressionTest(unittest.TestCase):
             self.assertEqual(row['coefficient'], leaf.coeff)
             self.assertEqual(row['RSS'], leaf.RSS)
             self.assertEqual(row['MSE'], leaf.MSE)
-            self.assertEqual(row['BIC'], leaf.BIC)
-            self.assertEqual(row['AIC'], leaf.AIC)
 
     def test_multiple_splits_simplify(self):
         self.generic_multiplesplits_simplify(float, 1)
