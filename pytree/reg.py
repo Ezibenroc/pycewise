@@ -273,7 +273,7 @@ class AbstractReg(ABC, Generic[Number]):
             xr, yr = zip(*reversed(list(self.right)))
             Node(Leaf(xl, yl, self.config), Leaf(xr, yr, self.config),
                  no_check=True).__plot_reg('green', log=log or log_x)
-        self.__plot_reg()
+        self.__plot_reg(log=log or log_x)
         for bp in self.breakpoints:
             plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
         self.__show_plot(log, log_x, log_y)
