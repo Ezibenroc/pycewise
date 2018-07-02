@@ -22,6 +22,10 @@ try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
+try:
+    import palettable
+except ImportError:
+    palettable = None
 
 
 Number = TypeVar('Number', float, Fraction, Decimal)
@@ -252,6 +256,27 @@ class AbstractReg(ABC, Generic[Number]):
             new_y = [self.predict(d) for d in new_x]
             plt.plot(new_x, new_y, '-', color=color)
 
+    def __plot_points(self, alpha, color):
+        segments = self.flatify().segments
+        if not color:
+            colors = ['black']
+        else:
+            if color is True:
+                nbcolors = min(8, len(segments))
+                if palettable:
+                    colors = palettable.colorbrewer.qualitative.__getattribute__('Dark2_%d' % nbcolors).mpl_colors
+                else:
+                    colors = ['red', 'green', 'blue']
+            elif isinstance(color, str):
+                colors = [color]
+            else:
+                colors = color
+        for i, ((_, _), leaf) in enumerate(segments):
+            data = list(leaf)
+            x = [d[0] for d in data]
+            y = [d[1] for d in data]
+            plt.plot(x, y, 'o', color=colors[i % len(colors)], alpha=alpha)
+
     def __show_plot(self, log, log_x, log_y):
         if log or log_x:
             plt.xscale('log')
@@ -259,26 +284,30 @@ class AbstractReg(ABC, Generic[Number]):
             plt.yscale('log')
         plt.show()
 
-    def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5, plot_merged_reg=False):
-        data = list(self)
-        x = [d[0] for d in data]
-        y = [d[1] for d in data]
+    def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5, color=True, plot_merged_reg=False):
+        if plt is None:
+            raise ImportError('Matploglib and/or palettable is not installed.')
         plt.figure(figsize=(20, 20))
         plt.subplot(2, 1, 1)
-        plt.plot(x, y, 'o', color='blue', alpha=alpha)
+        self.__plot_points(alpha=alpha, color=color)
         if len(self.breakpoints) > 0 and plot_merged_reg:
-            self.merge().__plot_reg('black', log=log or log_x)
+            self.merge().__plot_reg('red', log=log or log_x)
         if isinstance(self, Node) and plot_merged_reg:
             xl, yl = zip(*self.left)
             xr, yr = zip(*reversed(list(self.right)))
             Node(Leaf(xl, yl, self.config), Leaf(xr, yr, self.config),
                  no_check=True).__plot_reg('green', log=log or log_x)
-        self.__plot_reg(log=log or log_x)
+        if color:
+            self.__plot_reg('black', log=log or log_x)
+        else:
+            self.__plot_reg('red', log=log or log_x)
         for bp in self.breakpoints:
             plt.axvline(x=bp, color='black', linestyle='dashed', alpha=0.3)
         self.__show_plot(log, log_x, log_y)
 
     def plot_error(self, log=False, log_x=False, log_y=False, alpha=1):
+        if plt is None:
+            raise ImportError('Matploglib and/or palettable is not installed.')
         plt.figure(figsize=(20, 20))
         plt.subplot(2, 1, 1)
         x = []
@@ -293,7 +322,7 @@ class AbstractReg(ABC, Generic[Number]):
             else:
                 x.append(d[0])
                 y.append(d[1])
-        plt.plot(x, y, 'o', color='blue', alpha=alpha)
+        plt.plot(x, y, 'o', color='black', alpha=alpha)
         plt.plot(x_min, y_min, 'o', color='red')
         plt.axhline(y=self.errors.nosplit, color='red', linestyle='-')
         for bp in self.breakpoints:

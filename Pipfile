@@ -13,6 +13,7 @@ matplotlib = "*"
 graphviz = "*"
 coverage = "*"
 mock = "*"
+palettable = "*"
 
 [requires]
 python_version = "3.6"

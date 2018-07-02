@@ -319,6 +319,9 @@ class NodeTest(unittest.TestCase):
         reg.plot_dataset(log_x=True)
         reg.plot_dataset(log_y=True)
         reg.plot_dataset(plot_merged_reg=True)
+        reg.plot_dataset(color=False)
+        reg.plot_dataset(color='green')
+        reg.plot_dataset(color=['green', 'blue', 'red'])
 
     @mock.patch("matplotlib.pyplot.show")
     def test_plot_error(self, mock_show):
@@ -407,6 +410,9 @@ class FlatRegressionTest(unittest.TestCase):
         reg.plot_dataset(log_x=True)
         reg.plot_dataset(log_y=True)
         reg.plot_dataset(plot_merged_reg=True)
+        reg.plot_dataset(color=False)
+        reg.plot_dataset(color='green')
+        reg.plot_dataset(color=['green', 'blue', 'red'])
 
     def generic_multiplesplits_simplify(self, cls, repeat):
         self.maxDiff = None
