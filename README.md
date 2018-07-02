@@ -20,6 +20,21 @@ git clone https://github.com/Ezibenroc/pytree.git
 python3 setup.py install --user
 ```
 
+### Optional requirements
+
+The main functionnality of this package (computing a segmented linear regression) can be used without any third-party code.
+
+For additional features, the following packages should be installed (`pip install <package_name>`):
+
+- statsmodels
+- jupyter
+- matplotlib
+- graphviz
+- coverage
+- mock
+- palettable
+
+
 ## Usage
 
 See the notebooks [demo.ipynb](demo.ipynb) and [advanced_features.ipynb](advanced_features.ipynb).
