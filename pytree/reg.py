@@ -329,7 +329,7 @@ class AbstractReg(ABC, Generic[Number]):
         self.__show_plot(log, log_x, log_y)
 
     @abstractmethod
-    def _to_graphviz(self, dot: graphviz.Digraph) -> None:
+    def _to_graphviz(self, dot) -> None:
         pass
 
     def flatify(self):
@@ -389,7 +389,7 @@ class Leaf(AbstractReg[Number]):
             return '⊥'
         return 'y ~ %.3ex + %.3e' % (float(self.coeff), float(self.intercept))
 
-    def _to_graphviz(self, dot: graphviz.Digraph) -> None:
+    def _to_graphviz(self, dot):
         dot.node(str(id(self)), str(self))
 
     def __iter__(self) -> Generator[Tuple[Number, Number], None, None]:
@@ -683,14 +683,14 @@ class Node(AbstractReg[Number]):
 
         return '%s\n%s\n%s' % (split, left_str, right_str)
 
-    def to_graphviz(self) -> graphviz.Digraph:
+    def to_graphviz(self):
         if graphviz is None:
             raise ImportError('No module named "graphviz".')
         dot = graphviz.Digraph()
         self._to_graphviz(dot)
         return dot
 
-    def _to_graphviz(self, dot: graphviz.Digraph) -> None:
+    def _to_graphviz(self, dot):
         dot.node(str(id(self)), 'x ≤ %.3e?' % float(self.split), shape='box')
         self.left._to_graphviz(dot)
         self.right._to_graphviz(dot)
@@ -792,7 +792,7 @@ class FlatRegression(AbstractReg[Number]):
         for (_, _), leaf in self.segments:
             yield from leaf
 
-    def _to_graphviz(self, dot: graphviz.Digraph) -> None:
+    def _to_graphviz(self, dot) -> None:
         dot.node(str(id(self)), str(self))
 
     @property
