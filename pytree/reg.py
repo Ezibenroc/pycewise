@@ -426,17 +426,12 @@ class Leaf(AbstractReg[Number]):
     def RSS(self) -> Number:
         '''Return the residual sum of squares (RSS) of the linear regression y = αx + β.
         See https://stats.stackexchange.com/a/333431/196336'''
-        a = self.coeff
-        b = self.intercept
-        x = self.x.sum
-        y = self.y.sum
-        x2 = self.x2.sum
-        y2 = self.y2.sum
-        xy = self.xy.sum
-        return (+y2
-                - 2*(a*xy + b*y)
-                + (a**2*x2 + 2*a*b*x + len(self)*b**2)
-                )
+        return self.MSE * len(self)
+
+    @property
+    def MSE(self) -> Number:
+        '''Return the mean squared error (MSE) of the linear regression.'''
+        return self.y.var - self.cov**2 / self.x.var
 
     @property
     def nb_params(self) -> int:
