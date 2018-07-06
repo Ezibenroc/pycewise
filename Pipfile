@@ -14,6 +14,7 @@ graphviz = "*"
 coverage = "*"
 mock = "*"
 palettable = "*"
+snakeviz = "*"
 
 [requires]
 python_version = "3.6"
