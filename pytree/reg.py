@@ -262,7 +262,7 @@ class AbstractReg(ABC, Generic[Number]):
             colors = ['black']
         else:
             if color is True:
-                nbcolors = min(8, len(segments))
+                nbcolors = max(3, min(8, len(segments)))
                 if palettable:
                     colors = palettable.colorbrewer.qualitative.__getattribute__('Dark2_%d' % nbcolors).mpl_colors
                 else:
