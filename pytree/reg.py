@@ -114,8 +114,9 @@ class IncrementalStat(Generic[Number]):
     @property
     def var(self) -> Number:
         '''Return the variance of all the elements of the collection.'''
-        assert len(self) > 0
-        return self.M2[-1]/len(self)
+        n = len(self)
+        assert n > 1
+        return self.M2[-1]/(n-1)
 
     @property
     def std(self) -> float:
@@ -442,12 +443,17 @@ class Leaf(AbstractReg[Number]):
     @property
     def cov(self) -> Number:
         '''Return the covariance between the elements x and the elements y.'''
-        return self.cov_sum.mean
+        n = len(self)
+        return self.cov_sum.mean * n / (n-1)
 
     @property
     def corr(self) -> float:
-        '''Return the correlation coefficient between the elements x and the elements y.'''
-        return float(self.cov) / (self.std_x * self.std_y)
+        '''Return the correlation coefficient between the elements x and the elements y.
+
+        See https://en.wikipedia.org/wiki/Pearson_correlation_coefficient#For_a_sample
+        '''
+        n = len(self)
+        return float(self.xy.sum - n * self.mean_x * self.mean_y) / ((n - 1) * self.std_x * self.std_y)
 
     @property
     def coeff(self) -> Number:
@@ -473,7 +479,8 @@ class Leaf(AbstractReg[Number]):
     @property
     def MSE(self) -> Number:
         '''Return the mean squared error (MSE) of the linear regression.'''
-        return self.y.var - self.cov**2 / self.x.var
+        n = len(self)
+        return self.y.var * (n-1) / n - (self.cov * (n-1) / n)**2 / (self.x.var * (n-1) / n)
 
     @property
     def nb_params(self) -> int:

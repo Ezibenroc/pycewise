@@ -47,8 +47,8 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertEqual(stats.pop(), val)
             self.assertEqual(values.pop(), val)
             self.assertAlmostEqual(numpy.mean(values), stats.mean)
-            self.assertAlmostEqual(numpy.var(values),  stats.var)
-            self.assertAlmostEqual(numpy.std(values),  stats.std)
+            self.assertAlmostEqual(numpy.var(values, ddof=1),  stats.var)
+            self.assertAlmostEqual(numpy.std(values, ddof=1),  stats.std)
             self.assertAlmostEqual(sum(values),        stats.sum)
 
     def test_fraction(self):
@@ -64,7 +64,7 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertEqual(stats.pop(), val)
             self.assertEqual(values.pop(), val)
             self.assertEqual(numpy.mean(values), stats.mean)
-            self.assertEqual(numpy.var(values),  stats.var)
+            self.assertEqual(numpy.var(values, ddof=1),  stats.var)
             self.assertEqual(sum(values),        stats.sum)
 
     def test_func(self):
@@ -84,8 +84,8 @@ class IncrementalStatTest(unittest.TestCase):
             self.assertEqual(original_values.pop(), val)
             values.pop()
             self.assertAlmostEqual(numpy.mean(values), stats.mean)
-            self.assertAlmostEqual(numpy.var(values),  stats.var)
-            self.assertAlmostEqual(numpy.std(values),  stats.std)
+            self.assertAlmostEqual(numpy.var(values, ddof=1),  stats.var)
+            self.assertAlmostEqual(numpy.std(values, ddof=1),  stats.std)
             self.assertAlmostEqual(sum(values),        stats.sum)
 
 
@@ -104,16 +104,13 @@ class LeafTest(unittest.TestCase):
 
     def perform_tests(self, x, y, node, noisy):
         delta = 1e-10
-        self.assertAlmostEqual(
-            node.mean_x,   numpy.mean(x),              delta=delta)
-        self.assertAlmostEqual(
-            node.mean_y,   numpy.mean(y),              delta=delta)
-        self.assertAlmostEqual(node.std_x,    numpy.std(
-            x),               delta=delta)
-        self.assertAlmostEqual(node.std_y,    numpy.std(
-            y),               delta=delta)
-        self.assertAlmostEqual(node.corr,     numpy.corrcoef(x, y)[
-                               1, 0],  delta=delta)
+        self.assertAlmostEqual(node.mean_x, numpy.mean(x), delta=delta)
+        self.assertAlmostEqual(node.mean_y, numpy.mean(y), delta=delta)
+        self.assertAlmostEqual(node.std_x, numpy.std(x, ddof=1), delta=delta)
+        self.assertAlmostEqual(node.std_y, numpy.std(y, ddof=1), delta=delta)
+        corr = numpy.cov(x, y, ddof=1)[1, 0] / (numpy.std(x, ddof=1) * numpy.std(y, ddof=1))
+        self.assertAlmostEqual(node.corr, numpy.corrcoef(x, y)[1, 0],  delta=delta)
+        self.assertAlmostEqual(node.corr, corr,  delta=delta)
         if noisy:
             delta = max(*x, *y)/100  # TODO better delta ?
         self.assertAlmostEqual(node.coeff,     self.coeff,      delta=delta)
