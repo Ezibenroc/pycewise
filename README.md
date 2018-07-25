@@ -17,6 +17,7 @@ Replace the two occurences of the version number in the URL by the version you w
 
 ```bash
 git clone https://github.com/Ezibenroc/pytree.git
+cd pytree
 python3 setup.py install --user
 ```
 
