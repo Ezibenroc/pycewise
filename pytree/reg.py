@@ -226,7 +226,7 @@ class AbstractReg(ABC, Generic[Number]):
         Should be a bit more precise than the RSS property, but O(n) duration.'''
         return sum([(y - self.predict(x))**2 for x, y in self])
 
-    def __plot_reg(self, color='red', log=False):
+    def __plot_reg(self, color='red', log=False, use_statsmodels=False):
         # cannot use self.min, only Node objects have it
         min_x = math.floor(min(self)[0])
         max_x = math.ceil(max(self)[0])
@@ -254,7 +254,14 @@ class AbstractReg(ABC, Generic[Number]):
                     new_x.append(x_i)
                     x_i += step
             new_x.append(stop)
-            new_y = [self.predict(d) for d in new_x]
+            if not use_statsmodels:
+                new_y = [self.predict(d) for d in new_x]
+            else:
+                if statsmodels is None:
+                    raise ImportError('Could not import statsmodels')
+                else:
+                    self.compute_statsmodels_reg()
+                    new_y = [self.predict_statsmodels(d) for d in new_x]
             plt.plot(new_x, new_y, '-', color=color)
 
     def __plot_points(self, alpha, color):
@@ -284,14 +291,15 @@ class AbstractReg(ABC, Generic[Number]):
         if log or log_y:
             plt.yscale('log')
 
-    def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5, color=True, plot_merged_reg=False):
+    def plot_dataset(self, log=False, log_x=False, log_y=False, alpha=0.5, color=True, plot_merged_reg=False,
+                     use_statsmodels=False):
         if plt is None:
             raise ImportError('No module named "matplotlib".')
         plt.figure(figsize=(20, 20))
         plt.subplot(2, 1, 1)
         self.__plot_points(alpha=alpha, color=color)
         if len(self.breakpoints) > 0 and plot_merged_reg:
-            self.merge().__plot_reg('red', log=log or log_x)
+            self.merge().__plot_reg('red', log=log or log_x, use_statsmodels=use_statsmodels)
         if isinstance(self, Node) and plot_merged_reg:
             xl, yl = zip(*self.left)
             xr, yr = zip(*reversed(list(self.right)))
@@ -359,6 +367,10 @@ class AbstractReg(ABC, Generic[Number]):
                              'RSS': leaf.RSS,
                              'MSE': leaf.MSE,
                              })
+            if statsmodels is not None:
+                leaf.compute_statsmodels_reg()
+                segments[-1]['statsmodels_intercept'] = leaf.statsmodels_intercept
+                segments[-1]['statsmodels_coefficient'] = leaf.statsmodels_coeff
         return pandas.DataFrame(segments)
 
 
@@ -497,6 +509,9 @@ class Leaf(AbstractReg[Number]):
         '''Return a prediction of y for the variable x by using the linear regression y = αx + β.'''
         return self.coeff*x + self.intercept
 
+    def predict_statsmodels(self, x):
+        return self.statsmodels_coeff*x + self.statsmodels_intercept
+
     def add(self, x: Number, y: Number) -> None:
         '''Add the pair (x, y) to the collection.'''
         if len(self) == 0:
@@ -545,7 +560,10 @@ class Leaf(AbstractReg[Number]):
 
     def compute_statsmodels_reg(self) -> None:
         self.statsmodels_reg = statsmodels.ols(
-            formula='y~x', data={'x': self.x.values,  'y': self.y.values}).fit()
+            formula='y~x', data={'x': [float(x) for x in self.x.values],
+                                 'y': [float(y) for y in self.y.values]}).fit()
+        self.statsmodels_coeff = self.statsmodels_reg.params['x']
+        self.statsmodels_intercept = self.statsmodels_reg.params['Intercept']
 
     def compute_statsmodels_RSS(self) -> float:
         try:
@@ -611,6 +629,10 @@ class Node(AbstractReg[Number]):
     def RSS(self) -> Number:
         '''Return the residual sum of squares (RSS) of the segmented linear regression.'''
         return self.left.RSS + self.right.RSS
+
+    def compute_statsmodels_reg(self):
+        self.left.compute_statsmodels_reg()
+        self.right.compute_statsmodels_reg()
 
     def compute_statsmodels_RSS(self):
         return self.left.compute_statsmodels_RSS() + self.right.compute_statsmodels_RSS()
@@ -745,6 +767,12 @@ class Node(AbstractReg[Number]):
         else:
             return self.right.predict(x)
 
+    def predict_statsmodels(self, x):
+        if x <= self.split:
+            return self.left.predict_statsmodels(x)
+        else:
+            return self.right.predict_statsmodels(x)
+
     @property
     def breakpoints(self) -> List[Number]:
         return self.left.breakpoints + [self.split] + self.right.breakpoints
@@ -792,6 +820,10 @@ class FlatRegression(AbstractReg[Number]):
             rss += leaf.RSS
         return rss
 
+    def compute_statsmodels_reg(self):
+        for _, reg in self.segments:
+            reg.compute_statsmodels_reg()
+
     def __len__(self) -> int:
         return sum(len(leaf) for (_, _), leaf in self.segments)
 
@@ -822,6 +854,12 @@ class FlatRegression(AbstractReg[Number]):
             if min_x < x <= max_x:
                 break
         return leaf.predict(x)
+
+    def predict_statsmodels(self, x):
+        for (min_x, max_x), leaf in self.segments:
+            if min_x < x <= max_x:
+                break
+        return leaf.predict_statsmodels(x)
 
     def merge(self):
         leaf = Leaf([], [], config=self.config)
