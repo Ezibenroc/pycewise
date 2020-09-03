@@ -204,8 +204,8 @@ class AbstractReg(ABC, Generic[Number]):
             return float('inf')
         if self.null_RSS:
             # RSS cannot be null or negative
-            RSS = math.ldexp(1.0, -1074)
-        return param_penalty + len(self)*math.log(RSS)
+            RSS = math.ldexp(1.0, -1000)
+        return param_penalty + len(self)*math.log(RSS/len(self))
 
     @property
     def AIC(self) -> float:
@@ -238,7 +238,7 @@ class AbstractReg(ABC, Generic[Number]):
             if log:
                 if start <= 0:
                     # cannot plot negative values, capping to 0
-                    x_i = math.ldexp(1.0, -1074)
+                    x_i = math.ldexp(1.0, -1000)
                     if stop <= 0:
                         raise ValueError(
                             'Cannot plot in log scale with negative values.')
