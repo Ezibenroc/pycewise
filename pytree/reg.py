@@ -33,7 +33,7 @@ ExtNumber = Union[Number, int]
 
 
 class Config:
-    allowed_modes = ('AIC', 'BIC')
+    allowed_modes = ('AIC', 'BIC', 'log')
 
     def __init__(self, mode: str, epsilon: float) -> None:
         if mode not in self.allowed_modes:
@@ -162,7 +162,7 @@ class AbstractReg(ABC, Generic[Number]):
         return math.isclose(a, b, abs_tol=self.config.epsilon**2)
 
     def error_equal(self, a: Number, b: Number) -> bool:
-        assert self.config.mode in ('BIC', 'AIC')
+        assert self.config.mode in self.config.allowed_modes
         eps = abs(math.log2(self.config.epsilon**2))
         return math.isclose(a, b, abs_tol=eps)
 
@@ -182,9 +182,12 @@ class AbstractReg(ABC, Generic[Number]):
         try:
             if self.config.mode == 'AIC':
                 return self.AIC
-            else:
-                assert self.config.mode == 'BIC'
+            elif self.config.mode == 'BIC':
                 return self.BIC
+            elif self.config.mode == 'log':
+                return self.compute_BIClog()
+            else:
+                assert False
         except (AssertionError, InvalidOperation):
             return float('inf')
 
@@ -225,6 +228,20 @@ class AbstractReg(ABC, Generic[Number]):
         '''Actually compute the residual sum of squares from scratch.
         Should be a bit more precise than the RSS property, but O(n) duration.'''
         return sum([(y - self.predict(x))**2 for x, y in self])
+
+    def compute_RSSlog(self) -> float:
+        '''Warning: this computation has O(n) complexity.'''
+        try:
+            return sum([(math.log(y) - math.log(self.predict(x)))**2 for x, y in self])
+        except ValueError:
+            return float('inf')
+
+    def compute_BIClog(self) -> float:
+        '''Return a custom error metric which is hopefully better suited to exponential scales.
+        Warning: this computation has a O(n) complexity.'''
+        N = len(self)
+        param_penalty = math.log(N) * self.nb_params
+        return param_penalty + N*self.compute_RSSlog()
 
     def __plot_reg(self, color='red', log=False, use_statsmodels=False):
         # cannot use self.min, only Node objects have it
@@ -349,11 +366,11 @@ class AbstractReg(ABC, Generic[Number]):
             all_y.append(y)
         return FlatRegression(all_x, all_y, config=self.config, breakpoints=self.breakpoints)
 
-    def simplify(self):
-        return self.flatify().simplify()
+    def simplify(self, RSSlog=False):
+        return self.flatify().simplify(RSSlog=RSSlog)
 
-    def auto_simplify(self):
-        return self.flatify().auto_simplify()
+    def auto_simplify(self, RSSlog=False):
+        return self.flatify().auto_simplify(RSSlog=RSSlog)
 
     def to_pandas(self):
         if pandas is None:
@@ -867,7 +884,11 @@ class FlatRegression(AbstractReg[Number]):
             leaf.add(x, y)
         return leaf
 
-    def __simplify(self):
+    def __simplify(self, RSSlog=False):
+        if RSSlog:
+            RSS = lambda x: x.compute_RSSlog()
+        else:
+            RSS = lambda x: x.RSS
         all_regressions = [self]
         while True:
             min_rss = float('inf')
@@ -878,9 +899,9 @@ class FlatRegression(AbstractReg[Number]):
             for i in range(len(new_reg.segments)-1):
                 (left_min, left_max), left_leaf = new_reg.segments[i]
                 (right_min, right_max), right_leaf = new_reg.segments[i+1]
-                rss = (left_leaf + right_leaf).RSS - (left_leaf.RSS + right_leaf.RSS)
-                if rss < min_rss:
-                    min_rss = rss
+                rss_diff = RSS(left_leaf + right_leaf) - (RSS(left_leaf) + RSS(right_leaf))
+                if rss_diff < min_rss:
+                    min_rss = rss_diff
                     min_i = i
             (left_min, left_max), left_leaf = new_reg.segments[min_i]
             (right_min, right_max), right_leaf = new_reg.segments[min_i+1]
@@ -891,25 +912,32 @@ class FlatRegression(AbstractReg[Number]):
                    'RSS': reg.RSS,
                    'BIC': reg.BIC,
                    'AIC': reg.AIC,
+                   'BIClog': reg.compute_BIClog(),
+                   'RSSlog': reg.compute_RSSlog(),
                    'nb_breakpoints': len(reg.breakpoints)}
                   for reg in all_regressions]
         return result
 
-    def simplify(self):
-        result = self.__simplify()
+    def simplify(self, RSSlog=False):
+        result = self.__simplify(RSSlog=RSSlog)
         if pandas is not None:
             return pandas.DataFrame(result)
         else:
             return result
 
-    def auto_simplify(self):
-        result = self.__simplify()
+    def auto_simplify(self, RSSlog=False):
+        result = self.__simplify(RSSlog=RSSlog)
+        if RSSlog:
+            err = lambda x: x.compute_BIClog()
+        else:
+            err = lambda x: x.error
         min_error = float('inf')
         min_reg = None
         for res in result:
             reg = res['regression']
-            if min_error > reg.error or reg.error_equal(min_error, reg.error):
-                min_error = reg.error
+            new_error = err(reg)
+            if min_error > new_error or reg.error_equal(min_error, new_error):
+                min_error = new_error
                 min_reg = reg
         return min_reg
 
