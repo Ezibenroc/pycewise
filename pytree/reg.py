@@ -56,7 +56,7 @@ class IncrementalStat(Generic[Number]):
     Several aggregated values (e.g., mean and variance) can be obtained in constant time.
     For the algorithms, see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance'''
 
-    def __init__(self, func: Callable[[Number], Number]=lambda x: x) -> None:
+    def __init__(self, func: Callable[[Number], Number] = lambda x: x) -> None:
         self.values: List[Number] = []
         self.Ex: List[Number] = []
         self.M2: List[Number] = []
@@ -594,7 +594,7 @@ class Node(AbstractReg[Number]):
     STR_LJUST = 30
     Error = namedtuple('Error', ['nosplit', 'split', 'minsplit'])
 
-    def __init__(self, left_node: AbstractReg, right_node: AbstractReg, *, no_check: bool=False) -> None:
+    def __init__(self, left_node: AbstractReg, right_node: AbstractReg, *, no_check: bool = False) -> None:
         '''Assumptions:
              - all the x values in left_node are lower than the x values in right_node,
              - values in left_node  are sorted in increasing order (w.r.t. x),
@@ -707,7 +707,7 @@ class Node(AbstractReg[Number]):
             return self.left.last
 
     @staticmethod
-    def tabulate(string: str, pad: str='    ', except_first: bool=False) -> str:
+    def tabulate(string: str, pad: str = '    ', except_first: bool = False) -> str:
         '''Used for the string representation.'''
         substrings = string.split('\n')
         for i, s in enumerate(substrings):
@@ -885,10 +885,11 @@ class FlatRegression(AbstractReg[Number]):
         return leaf
 
     def __simplify(self, RSSlog=False):
-        if RSSlog:
-            RSS = lambda x: x.compute_RSSlog()
-        else:
-            RSS = lambda x: x.RSS
+        def RSS(x):
+            if RSSlog:
+                return x.compute_RSSlog()
+            else:
+                return x.RSS
         all_regressions = [self]
         while True:
             min_rss = float('inf')
@@ -926,11 +927,12 @@ class FlatRegression(AbstractReg[Number]):
             return result
 
     def auto_simplify(self, RSSlog=False):
+        def err(x):
+            if RSSlog:
+                return x.compute_BIClog()
+            else:
+                return x.error
         result = self.__simplify(RSSlog=RSSlog)
-        if RSSlog:
-            err = lambda x: x.compute_BIClog()
-        else:
-            err = lambda x: x.error
         min_error = float('inf')
         min_reg = None
         for res in result:
