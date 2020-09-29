@@ -534,6 +534,57 @@ class Leaf(AbstractReg[Number]):
             self.__modified = False
         return self.__wcoeff, self.__wintercept
 
+    def _compute_log_parameters(self, eps=1e-12):
+        '''Return the tuple (intercept, coefficient) of the linear regression where the error function is logarithmic
+        (i.e. we use the BIClog and RSSlog functions instead of BIC and RSS).
+        Warning: O(n) complexity.
+        There is no closed formula for this, so we perform a dichotomy on the derivative.
+        '''
+        def deriv(coeff, intercept):
+            '''Compute the value of the derivative of RSSlog in the given point (w.r.t. the intercept and the coefficient).
+            '''
+            assert intercept > 0 and coeff > 0
+            S_intercept = 0
+            S_coefficient = 0
+            for x, y in self:
+                A = math.log(y) - math.log(coeff*x + intercept)
+                B = 1/(coeff*x + intercept)
+                S_intercept += A*B
+                S_coefficient += A*B*x
+            return -2*S_coefficient, -2*S_intercept
+        i_range = (1e-30, 1e10)
+        c_range = (1e-30, 1e10)
+        i = 0
+        change_coeff = True
+        while True:
+            if i > 1000:
+                print(f'Parameters: {c_range, i_range}')
+                print(f'\tDerivative: {D_coefficient, D_intercept}')
+                break
+            i += 1
+            intercept = (i_range[0] + i_range[1])/2
+            coeff = (c_range[0] + c_range[1])/2
+            D_coefficient, D_intercept = deriv(coeff, intercept)
+    #        print(f'Parameters: {c_range, i_range}')
+    #        print(f'\tDerivative: {D_coefficient, D_intercept}')
+            D = max(abs(D_coefficient), abs(D_intercept))
+            if abs(D) < eps:
+                return coeff, intercept
+            if change_coeff:#D == abs(D_coefficient):  # high derivative for the coefficient, let's move it
+                if D_coefficient < 0:
+                    c_range = (coeff, c_range[1])
+                else:
+                    c_range = (c_range[0], coeff)
+            else: #lif D == abs(D_intercept):  # high derivative for the intercept, let's move it
+                if D_intercept < 0:
+                    i_range = (intercept, i_range[1])
+                else:
+                    i_range = (i_range[0], intercept)
+            #else:
+            #    assert False
+            change_coeff = not change_coeff
+
+
     @property
     def coeff(self) -> Number:
         '''Return the coefficient α of the linear regression y = αx + β.'''
