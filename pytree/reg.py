@@ -247,8 +247,14 @@ class AbstractReg(ABC, Generic[Number]):
         '''Return a custom error metric based on the weighted RSS.
         Warning: this computation has a O(n) complexity.'''
         N = len(self)
-        param_penalty = math.log(N) * self.nb_params
-        return param_penalty + N*math.log(self.compute_weighted_RSS()/N)
+        try:
+            param_penalty = math.log(N) * self.nb_params
+            WRSS = self.compute_weighted_RSS()
+            if WRSS <= 0:
+                WRSS = math.ldexp(1., -1000)
+            return param_penalty + N*math.log(WRSS/N)
+        except ZeroDivisionError:
+            return float('inf')
 
     def compute_BIClog(self) -> float:
         '''Return a custom error metric which is hopefully better suited to exponential scales.
