@@ -33,7 +33,7 @@ ExtNumber = Union[Number, int]
 
 
 class Config:
-    allowed_modes = ('AIC', 'BIC', 'log')
+    allowed_modes = ('AIC', 'BIC', 'log', 'weighted')
 
     def __init__(self, mode: str, epsilon: float) -> None:
         if mode not in self.allowed_modes:
@@ -186,6 +186,8 @@ class AbstractReg(ABC, Generic[Number]):
                 return self.BIC
             elif self.config.mode == 'log':
                 return self.compute_BIClog()
+            elif self.config.mode == 'weighted':
+                return self.compute_weighted_BIC()
             else:
                 assert False
         except (AssertionError, InvalidOperation):
@@ -229,12 +231,24 @@ class AbstractReg(ABC, Generic[Number]):
         Should be a bit more precise than the RSS property, but O(n) duration.'''
         return sum([(y - self.predict(x))**2 for x, y in self])
 
+    def compute_weighted_RSS(self) -> ExtNumber:
+        '''Actually compute the *weighted* residual sum of squares from scratch.
+        Warning: this computation has O(n) complexity.'''
+        return sum([((y - self.predict(x))/x)**2 for x, y in self])
+
     def compute_RSSlog(self) -> float:
         '''Warning: this computation has O(n) complexity.'''
         try:
             return sum([(math.log(y) - math.log(self.predict(x)))**2 for x, y in self])
         except ValueError:
             return float('inf')
+
+    def compute_weighted_BIC(self) -> float:
+        '''Return a custom error metric based on the weighted RSS.
+        Warning: this computation has a O(n) complexity.'''
+        N = len(self)
+        param_penalty = math.log(N) * self.nb_params
+        return param_penalty + N*math.log(self.compute_weighted_RSS()/N)
 
     def compute_BIClog(self) -> float:
         '''Return a custom error metric which is hopefully better suited to exponential scales.
@@ -401,6 +415,7 @@ class Leaf(AbstractReg[Number]):
     def __init__(self, x: List[Number], y: List[Number], config: Config) -> None:
         assert len(x) == len(y)
         self.config = config
+        self.__modified = True
         self.x: IncrementalStat[Number] = IncrementalStat()
         self.y: IncrementalStat[Number] = IncrementalStat()
         self.counter_x: Dict[Number, int] = Counter()
@@ -484,14 +499,47 @@ class Leaf(AbstractReg[Number]):
         n = len(self)
         return float(self.xy.sum - n * self.mean_x * self.mean_y) / ((n - 1) * self.std_x * self.std_y)
 
+    def _compute_weighted_parameters(self, weights):
+        '''Return the tuple (intercept, coefficient) of the linear regression with the given weights.
+        Warning: O(n) complexity.
+        The formula is based on slide 7-3 from https://ms.mcmaster.ca/canty/teaching/stat3a03/Lectures7.pdf
+        '''
+        assert len(self) == len(weights)
+        Wtotal, XW, YW = 0, 0, 0
+        for w, (x, y) in zip(weights, self):
+            Wtotal += w
+            XW += x*w
+            YW += y*w
+        XW /= Wtotal
+        YW /= Wtotal
+        num = 0
+        denom = 0
+        for w, (x, y) in zip(weights, self):
+            num += (w*(x-XW)*(y-YW))
+            denom += w*(x-XW)**2
+        coeff = num/denom
+        intercept = YW-coeff*XW
+        return coeff, intercept
+
+    def compute_weighted_parameters(self):
+        if self.__modified:
+            weights = [1/x for x in self.x]
+            self.__wcoeff, self.__wintercept = self._compute_weighted_parameters(weights)
+            self.__modified = False
+        return self.__wcoeff, self.__wintercept
+
     @property
     def coeff(self) -> Number:
         '''Return the coefficient α of the linear regression y = αx + β.'''
+        if self.config.mode == 'weighted':
+            return self.compute_weighted_parameters()[0]
         return self.cov / self.x.var
 
     @property
     def intercept(self) -> Number:
         '''Return the intercept β of the linear regression y = αx + β.'''
+        if self.config.mode == 'weighted':
+            return self.compute_weighted_parameters()[1]
         return self.mean_y - self.coeff*self.mean_x
 
     @property
@@ -531,6 +579,7 @@ class Leaf(AbstractReg[Number]):
 
     def add(self, x: Number, y: Number) -> None:
         '''Add the pair (x, y) to the collection.'''
+        self.__modified = True
         if len(self) == 0:
             dx = x
         else:
@@ -546,6 +595,7 @@ class Leaf(AbstractReg[Number]):
 
     def pop(self) -> Tuple[Number, Number]:
         '''Remove and return the last pair (x, y) that was added to the collection.'''
+        self.__modified = True
         self.cov_sum.pop()
         self.xy.pop()
         self.x2.pop()
@@ -915,6 +965,8 @@ class FlatRegression(AbstractReg[Number]):
                    'AIC': reg.AIC,
                    'BIClog': reg.compute_BIClog(),
                    'RSSlog': reg.compute_RSSlog(),
+                   'weighted_RSS': reg.compute_weighted_RSS(),
+                   'weighted_BIC': reg.compute_weighted_BIC(),
                    'nb_breakpoints': len(reg.breakpoints)}
                   for reg in all_regressions]
         return result
