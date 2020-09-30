@@ -534,7 +534,7 @@ class Leaf(AbstractReg[Number]):
             self.__modified = False
         return self.__wcoeff, self.__wintercept
 
-    def _compute_log_parameters(self, eps=1e-12):
+    def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12, step_fact=0.8):
         '''Return the tuple (intercept, coefficient) of the linear regression where the error function is logarithmic
         (i.e. we use the BIClog and RSSlog functions instead of BIC and RSS).
         Warning: O(n) complexity.
@@ -543,7 +543,6 @@ class Leaf(AbstractReg[Number]):
         def deriv(coeff, intercept):
             '''Compute the value of the derivative of RSSlog in the given point (w.r.t. the intercept and the coefficient).
             '''
-            assert intercept > 0 and coeff > 0
             S_intercept = 0
             S_coefficient = 0
             for x, y in self:
@@ -552,52 +551,80 @@ class Leaf(AbstractReg[Number]):
                 S_intercept += A*B
                 S_coefficient += A*B*x
             return -2*S_coefficient, -2*S_intercept
-        i_range = (1e-30, 1e10)
-        c_range = (1e-30, 1e10)
-        i = 0
-        change_coeff = True
-        while True:
-            if i > 1000:
-                print(f'Parameters: {c_range, i_range}')
-                print(f'\tDerivative: {D_coefficient, D_intercept}')
-                break
-            i += 1
-            intercept = (i_range[0] + i_range[1])/2
-            coeff = (c_range[0] + c_range[1])/2
-            D_coefficient, D_intercept = deriv(coeff, intercept)
-    #        print(f'Parameters: {c_range, i_range}')
-    #        print(f'\tDerivative: {D_coefficient, D_intercept}')
-            D = max(abs(D_coefficient), abs(D_intercept))
-            if abs(D) < eps:
-                return coeff, intercept
-            if change_coeff:#D == abs(D_coefficient):  # high derivative for the coefficient, let's move it
-                if D_coefficient < 0:
-                    c_range = (coeff, c_range[1])
-                else:
-                    c_range = (c_range[0], coeff)
-            else: #lif D == abs(D_intercept):  # high derivative for the intercept, let's move it
-                if D_intercept < 0:
-                    i_range = (intercept, i_range[1])
-                else:
-                    i_range = (i_range[0], intercept)
-            #else:
-            #    assert False
-            change_coeff = not change_coeff
 
+        def function(coeff, intercept):
+            '''Compute the value of RSSlog in the given point.'''
+            S = 0
+            for x, y in self:
+                S += (math.log(y) - math.log(coeff*x + intercept))**2
+            return S
+        coeff = start_coeff
+        intercept = start_intercept
+        error = function(coeff, intercept)
+        i = 0
+        while True:
+            i += 1
+            D_coefficient, D_intercept = deriv(coeff, intercept)
+            #   print(f'Parameters: {coeff, intercept}')
+            #   print(f'\tDerivative: {D_coefficient, D_intercept}')
+            #   print(f'\tValue: {error}')
+            D = (D_coefficient**2 + D_intercept**2)**(1/2)
+            if D < eps or i >= 1000:
+                # print(f'Terminated in {i} iterations (error = {error})')
+                return coeff, intercept
+            # searching the distance to which we should jump in the gradient direction
+            # using backtracking line search
+            step = 1
+            while True:
+                if step < 1e-50:  # we cannot decrease further the error
+                    # print(f'Terminated in {i} iterations (error = {error})')
+                    return coeff, intercept
+                delta_coeff = D_coefficient*step
+                delta_int = D_intercept*step
+                try:
+                    new_error = function(coeff-delta_coeff, intercept-delta_int)
+                except ValueError:  # negative log, we went too far
+                    step *= step_fact
+                    continue
+                if new_error < error - step/2*(D**2):
+                    break
+                step *= step_fact
+            coeff -= delta_coeff
+            intercept -= delta_int
+            error = new_error
+
+    def compute_log_parameters(self):
+        if self.__modified:
+            self.__lcoeff, self.__lintercept = self._compute_log_parameters(
+                    start_coeff=max(0, self._compute_classical_coeff()),
+                    start_intercept=max(0, self._compute_classical_intercept()),
+                    eps=self.config.epsilon*1e-3, step_fact=0.1)
+            self.__modified = False
+        return self.__lcoeff, self.__lintercept
+
+    def _compute_classical_coeff(self):
+        return self.cov / self.x.var
+
+    def _compute_classical_intercept(self):
+        return self.mean_y - self._compute_classical_coeff()*self.mean_x
 
     @property
     def coeff(self) -> Number:
         '''Return the coefficient α of the linear regression y = αx + β.'''
         if self.config.mode == 'weighted':
             return self.compute_weighted_parameters()[0]
-        return self.cov / self.x.var
+        elif self.config.mode == 'log':
+            return self.compute_log_parameters()[0]
+        return self._compute_classical_coeff()
 
     @property
     def intercept(self) -> Number:
         '''Return the intercept β of the linear regression y = αx + β.'''
         if self.config.mode == 'weighted':
             return self.compute_weighted_parameters()[1]
-        return self.mean_y - self.coeff*self.mean_x
+        elif self.config.mode == 'log':
+            return self.compute_log_parameters()[1]
+        return self._compute_classical_intercept()
 
     @property
     def rsquared(self) -> float:
