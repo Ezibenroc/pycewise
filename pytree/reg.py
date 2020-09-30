@@ -403,6 +403,8 @@ class AbstractReg(ABC, Generic[Number]):
                              'coefficient': leaf.coeff,
                              'RSS': leaf.RSS,
                              'MSE': leaf.MSE,
+                             'RSSlog': leaf.compute_RSSlog(),
+                             'weighted_RSS': leaf.compute_weighted_RSS(),
                              })
             if statsmodels is not None:
                 leaf.compute_statsmodels_reg()
