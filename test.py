@@ -129,6 +129,27 @@ class LeafTest(unittest.TestCase):
             node = Leaf(x, y, config=self.config)
             self.perform_tests(x, y, node, noise > 0)
 
+    def perform_test_other_modes(self, mode):
+        for noise in [0, 1, 2, 4, 8]:
+            x = [d[0] for d in self.data]
+            y = [d[1] + random.gauss(0, noise) for d in self.data]
+            config = Config(mode=mode, epsilon=1e-6)
+            node = Leaf(x, y, config=config)
+            self.assertAlmostEqual(node.coeff,     self.coeff,      delta=0.2)
+            self.assertAlmostEqual(node.intercept, self.intercept,  delta=1*(noise+0.001))
+            # we add an "outlier" and check that it increases the error significantly
+            error = node.error
+            new_x = random.uniform(0, 100)
+            node.add(new_x, new_x*(self.coeff*1.2) + self.intercept*1.2)
+            new_error = node.error
+            self.assertGreater(new_error, error)
+
+    def test_weighted(self):
+        self.perform_test_other_modes('weighted')
+
+    def test_log(self):
+        self.perform_test_other_modes('log')
+
     def test_add_remove(self):
         for noise in [0, 1, 2, 4, 8]:
             x = [d[0] for d in self.data]
