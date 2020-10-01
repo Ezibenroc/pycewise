@@ -539,8 +539,8 @@ class Leaf(AbstractReg[Number]):
     def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12, step_fact=0.8):
         '''Return the tuple (intercept, coefficient) of the linear regression where the error function is logarithmic
         (i.e. we use the BIClog and RSSlog functions instead of BIC and RSS).
-        Warning: O(n) complexity.
-        There is no closed formula for this, so we perform a dichotomy on the derivative.
+        Warning: O(Kn) complexity with K large...
+        There is no closed formula for this, so we perform a gradient descent.
         '''
         def deriv(coeff, intercept):
             '''Compute the value of the derivative of RSSlog in the given point (w.r.t. the intercept and the coefficient).
