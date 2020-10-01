@@ -515,6 +515,8 @@ class Leaf(AbstractReg[Number]):
         Warning: O(n) complexity.
         The formula is based on slide 7-3 from https://ms.mcmaster.ca/canty/teaching/stat3a03/Lectures7.pdf
         '''
+        if len(self) <= 1:
+            raise ZeroDivisionError
         assert len(self) == len(weights)
         Wtotal, XW, YW = 0, 0, 0
         for w, (x, y) in zip(weights, self):
@@ -563,6 +565,8 @@ class Leaf(AbstractReg[Number]):
             for x, y in self:
                 S += (math.log(y) - math.log(coeff*x + intercept))**2
             return S
+        if len(self) <= 1:
+            raise ZeroDivisionError
         coeff = start_coeff
         intercept = start_intercept
         error = function(coeff, intercept)
