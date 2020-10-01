@@ -1022,8 +1022,10 @@ class FlatRegression(AbstractReg[Number]):
 
     def __simplify(self, RSSlog=False):
         def RSS(x):
-            if RSSlog:
+            if RSSlog or self.config.mode == 'log':
                 return x.compute_RSSlog()
+            elif self.config.mode == 'weighted':
+                return x.compute_weighted_RSS()
             else:
                 return x.RSS
         all_regressions = [self]
