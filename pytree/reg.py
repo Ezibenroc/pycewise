@@ -259,9 +259,12 @@ class AbstractReg(ABC, Generic[Number]):
     def compute_BIClog(self) -> float:
         '''Return a custom error metric which is hopefully better suited to exponential scales.
         Warning: this computation has a O(n) complexity.'''
-        N = len(self)
-        param_penalty = math.log(N) * self.nb_params
-        return param_penalty + N*self.compute_RSSlog()
+        try:
+            N = len(self)
+            param_penalty = math.log(N) * self.nb_params
+            return param_penalty + N*self.compute_RSSlog()
+        except ZeroDivisionError:
+            return float('inf')
 
     def __plot_reg(self, color='red', log=False, use_statsmodels=False):
         # cannot use self.min, only Node objects have it
