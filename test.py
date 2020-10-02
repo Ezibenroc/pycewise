@@ -136,11 +136,11 @@ class LeafTest(unittest.TestCase):
             config = Config(mode=mode, epsilon=1e-6)
             node = Leaf(x, y, config=config)
             self.assertAlmostEqual(node.coeff,     self.coeff,      delta=0.2)
-            self.assertAlmostEqual(node.intercept, self.intercept,  delta=1*(noise+0.001))
+            self.assertAlmostEqual(node.intercept, self.intercept,  delta=2*(noise+0.001))
             # we add an "outlier" and check that it increases the error significantly
             error = node.error
             new_x = random.uniform(0, 100)
-            node.add(new_x, new_x*(self.coeff*1.2) + self.intercept*1.2)
+            node.add(new_x, new_x*(self.coeff*1.5) + self.intercept*1.5)
             new_error = node.error
             self.assertGreater(new_error, error)
 
