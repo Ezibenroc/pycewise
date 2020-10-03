@@ -541,7 +541,8 @@ class Leaf(AbstractReg[Number]):
             self.__modified = False
         return self.__wcoeff, self.__wintercept
 
-    def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12, step_fact=0.8):
+    def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12, step_fact=0.8,
+                                max_iter=1000, return_search=False):
         '''Return the tuple (intercept, coefficient) of the linear regression where the error function is logarithmic
         (i.e. we use the BIClog and RSSlog functions instead of BIC and RSS).
         Warning: O(Kn) complexity with K large...
@@ -571,6 +572,9 @@ class Leaf(AbstractReg[Number]):
         intercept = start_intercept
         error = function(coeff, intercept)
         i = 0
+        if return_search:
+            search_list = []
+            search_list.append({'coefficient': coeff, 'intercept': intercept, 'error': error, 'index': i})
         while True:
             i += 1
             D_coefficient, D_intercept = deriv(coeff, intercept)
@@ -578,8 +582,10 @@ class Leaf(AbstractReg[Number]):
             #   print(f'\tDerivative: {D_coefficient, D_intercept}')
             #   print(f'\tValue: {error}')
             D = (D_coefficient**2 + D_intercept**2)**(1/2)
-            if D < eps or i >= 1000:
+            if D < eps or i >= max_iter:
                 # print(f'Terminated in {i} iterations (error = {error})')
+                if return_search:
+                    return pandas.DataFrame(search_list)
                 return coeff, intercept
             # searching the distance to which we should jump in the gradient direction
             # using backtracking line search
@@ -601,6 +607,8 @@ class Leaf(AbstractReg[Number]):
             coeff -= delta_coeff
             intercept -= delta_int
             error = new_error
+            if return_search:
+                search_list.append({'coefficient': coeff, 'intercept': intercept, 'error': error, 'index': i})
 
     def compute_log_parameters(self):
         if self.__modified:
