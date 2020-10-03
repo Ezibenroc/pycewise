@@ -26,6 +26,10 @@ try:
     import palettable
 except ImportError:
     palettable = None
+try:
+    import numpy
+except ImportError:
+    numpy = None
 
 
 Number = TypeVar('Number', float, Fraction, Decimal)
@@ -548,36 +552,36 @@ class Leaf(AbstractReg[Number]):
         Warning: O(Kn) complexity with K large...
         There is no closed formula for this, so we perform a gradient descent.
         '''
-        def deriv(coeff, intercept):
+        def deriv(coeff, intercept, x, y):
             '''Compute the value of the derivative of RSSlog in the given point (w.r.t. the intercept and the coefficient).
             '''
             S_intercept = 0
             S_coefficient = 0
-            for x, y in self:
-                A = math.log(y) - math.log(coeff*x + intercept)
-                B = 1/(coeff*x + intercept)
-                S_intercept += A*B
-                S_coefficient += A*B*x
+            pred = x*coeff + intercept
+            A = numpy.log(y) - numpy.log(pred)
+            B = 1/(pred)
+            S_intercept = A*B
+            S_coefficient = (S_intercept*x).sum()
+            S_intercept = S_intercept.sum()
             return -2*S_coefficient, -2*S_intercept
 
-        def function(coeff, intercept):
+        def function(coeff, intercept, x, y):
             '''Compute the value of RSSlog in the given point.'''
-            S = 0
-            for x, y in self:
-                S += (math.log(y) - math.log(coeff*x + intercept))**2
-            return S
+            return ((numpy.log(y) - numpy.log(x*coeff+intercept))**2).sum()
         if len(self) <= 1:
             raise ZeroDivisionError
+        x_val = numpy.array(list(self.x))
+        y_val = numpy.array(list(self.y))
         coeff = start_coeff
         intercept = start_intercept
-        error = function(coeff, intercept)
+        error = function(coeff, intercept, x_val, y_val)
         i = 0
         if return_search:
             search_list = []
             search_list.append({'coefficient': coeff, 'intercept': intercept, 'error': error, 'index': i})
         while True:
             i += 1
-            D_coefficient, D_intercept = deriv(coeff, intercept)
+            D_coefficient, D_intercept = deriv(coeff, intercept, x_val, y_val)
             #   print(f'Parameters: {coeff, intercept}')
             #   print(f'\tDerivative: {D_coefficient, D_intercept}')
             #   print(f'\tValue: {error}')
@@ -599,7 +603,7 @@ class Leaf(AbstractReg[Number]):
                 delta_coeff = D_coefficient*step
                 delta_int = D_intercept*step
                 try:
-                    new_error = function(coeff-delta_coeff, intercept-delta_int)
+                    new_error = function(coeff-delta_coeff, intercept-delta_int, x_val, y_val)
                 except ValueError:  # negative log, we went too far
                     step *= step_fact
                     continue
