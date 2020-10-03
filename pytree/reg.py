@@ -591,9 +591,9 @@ class Leaf(AbstractReg[Number]):
             # using backtracking line search
             step = 1
             while True:
-                if step < 1e-50:  # we cannot decrease further the error in this direction
+                if step < 1e-50:  # we cannot decrease further the error
                     # print(f'Terminated in {i} iterations (error = {error})')
-                    break
+                    return coeff, intercept
                 delta_coeff = D_coefficient*step
                 delta_int = D_intercept*step
                 try:
