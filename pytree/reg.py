@@ -644,9 +644,9 @@ class Leaf(AbstractReg[Number]):
             error = new_error
             if return_search:
                 search_list.append({'coefficient': coeff, 'intercept': intercept,
-                    'error': error,
-                    'index': i,
-                    'final_step': step, 'D': D, 'D_coeff': D_coefficient, 'D_inter': D_intercept})
+                                    'error': error,
+                                    'index': i,
+                                    'final_step': step, 'D': D, 'D_coeff': D_coefficient, 'D_inter': D_intercept})
         if return_search:
             return pandas.DataFrame(search_list)
         return coeff, intercept
