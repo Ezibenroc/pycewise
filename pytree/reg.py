@@ -568,6 +568,13 @@ class Leaf(AbstractReg[Number]):
         def function(coeff, intercept, x, y):
             '''Compute the value of RSSlog in the given point.'''
             return ((numpy.log(y) - numpy.log(x*coeff+intercept))**2).sum()
+
+        def norm(A, B):
+            return (A**2 + B**2)**(1/2)
+
+        def project_vector(Ax, Ay, Bx, By):
+            '''Return the length of (Ax,Ay) projected onto (Bx,By).'''
+            return (Ax*Bx + Ay*By) / norm(Bx, By)
         if len(self) <= 1:
             raise ZeroDivisionError
         x_val = numpy.array(list(self.x))
@@ -579,48 +586,76 @@ class Leaf(AbstractReg[Number]):
         if return_search:
             search_list = []
             search_list.append({'coefficient': coeff, 'intercept': intercept, 'error': error, 'index': i})
+        # Start of the gradient descent loop
         while True:
             i += 1
             D_coefficient, D_intercept = deriv(coeff, intercept, x_val, y_val)
-            #   print(f'Parameters: {coeff, intercept}')
-            #   print(f'\tDerivative: {D_coefficient, D_intercept}')
-            #   print(f'\tValue: {error}')
-            D = (D_coefficient**2 + D_intercept**2)**(1/2)
+            D = norm(D_coefficient, D_intercept)
             if D < eps or i >= max_iter:
-                # print(f'Terminated in {i} iterations (error = {error})')
-                if return_search:
-                    return pandas.DataFrame(search_list)
-                return coeff, intercept
-            # searching the distance to which we should jump in the gradient direction
-            # using backtracking line search
-            step = 1
+                break
+            # We have a gradient direction, now we have to find out the distance.
+            # We perform a binary search to find the appropriate step size.
+            # First, we search for the upper bound of our binary search with an exponential increase.
+            step = 1.
             while True:
-                if step < 1e-50:  # we cannot decrease further the error
-                    # print(f'Terminated in {i} iterations (error = {error})')
-                    if return_search:
-                        return pandas.DataFrame(search_list)
-                    return coeff, intercept
                 delta_coeff = D_coefficient*step
                 delta_int = D_intercept*step
                 try:
-                    new_error = function(coeff-delta_coeff, intercept-delta_int, x_val, y_val)
+                    new_Deriv = deriv(coeff-delta_coeff, intercept-delta_int, x_val, y_val)
                 except ValueError:  # negative log, we went too far
-                    step *= step_fact
-                    continue
-                if new_error < error - step/2*(D**2):
                     break
-                step *= step_fact
+                if any(numpy.isnan(new_Deriv)):
+                    break
+                new_D = project_vector(new_Deriv[0], new_Deriv[1], D_coefficient, D_intercept)
+                if new_D < 0:
+                    break
+                step *= 10
+            # Then we do the binary search itself.
+            interval = [0, step]
+            while True:
+                if((interval[1]-interval[0])/interval[1] < 1e-10):
+                    break
+                step = (interval[0] + interval[1])/2
+                if step <= 1e-50:
+                    break
+                delta_coeff = D_coefficient*step
+                delta_int = D_intercept*step
+                try:
+                    new_Deriv = deriv(coeff-delta_coeff, intercept-delta_int, x_val, y_val)
+                except ValueError:  # negative log, we went too far
+                    interval[1] = step
+                    continue
+                if any(numpy.isnan(new_Deriv)):
+                    interval[1] = step
+                    continue
+                new_D = project_vector(new_Deriv[0], new_Deriv[1], D_coefficient, D_intercept)
+                if abs(new_D) < 1e-50:
+                    break
+                if new_D > 0:
+                    interval[0] = step
+                else:
+                    interval[1] = step
+            # Here we have the distance and the direction, we can compute the next point.
             coeff -= delta_coeff
             intercept -= delta_int
+            new_error = function(coeff, intercept, x_val, y_val)
+            if abs(error-new_error) <= eps:
+                break
             error = new_error
             if return_search:
-                search_list.append({'coefficient': coeff, 'intercept': intercept, 'error': error, 'index': i})
+                search_list.append({'coefficient': coeff, 'intercept': intercept,
+                    'error': error,
+                    'index': i,
+                    'final_step': step, 'D': D, 'D_coeff': D_coefficient, 'D_inter': D_intercept})
+        if return_search:
+            return pandas.DataFrame(search_list)
+        return coeff, intercept
 
     def compute_log_parameters(self):
         if self.__modified:
             self.__lcoeff, self.__lintercept = self._compute_log_parameters(
-                    start_coeff=max(0, self._compute_classical_coeff()),
-                    start_intercept=max(0, self._compute_classical_intercept()),
+                    start_coeff=max(0, self._compute_classical_coeff())*2,
+                    start_intercept=max(0, self._compute_classical_intercept())*2,
                     eps=self.config.epsilon*1e-3, step_fact=0.1)
             self.__modified = False
         return self.__lcoeff, self.__lintercept
