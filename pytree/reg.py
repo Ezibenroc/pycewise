@@ -613,10 +613,8 @@ class Leaf(AbstractReg[Number]):
             # Then we do the binary search itself.
             interval = [0, step]
             while True:
-                if((interval[1]-interval[0])/interval[1] < 1e-10):
-                    break
                 step = (interval[0] + interval[1])/2
-                if step <= 1e-50:
+                if step == interval[0] or step == interval[1]:
                     break
                 delta_coeff = D_coefficient*step
                 delta_int = D_intercept*step
@@ -646,7 +644,7 @@ class Leaf(AbstractReg[Number]):
                 search_list.append({'coefficient': coeff, 'intercept': intercept,
                                     'error': error,
                                     'index': i,
-                                    'final_step': step, 'D': D, 'D_coeff': D_coefficient, 'D_inter': D_intercept})
+                                    'final_step': step, 'D': D, 'new_D': new_D, 'D_coeff': D_coefficient, 'D_inter': D_intercept})
         if return_search:
             return pandas.DataFrame(search_list)
         return coeff, intercept
