@@ -569,12 +569,16 @@ class Leaf(AbstractReg[Number]):
             '''Compute the value of RSSlog in the given point.'''
             return ((numpy.log(y) - numpy.log(x*coeff+intercept))**2).sum()
 
-        def norm(A, B):
-            return (A**2 + B**2)**(1/2)
+        def dot(Ax, Ay, Bx, By):
+            return Ax*Bx + Ay*By
+
+        def norm(Ax, Ay):
+            return dot(Ax, Ay, Ax, Ay)**(1/2)
 
         def project_vector(Ax, Ay, Bx, By):
             '''Return the length of (Ax,Ay) projected onto (Bx,By).'''
-            return (Ax*Bx + Ay*By) / norm(Bx, By)
+            return dot(Ax, Ay, Bx, By) / norm(Bx, By)
+
         if len(self) <= 1:
             raise ZeroDivisionError
         x_val = numpy.array(list(self.x))
@@ -652,8 +656,8 @@ class Leaf(AbstractReg[Number]):
     def compute_log_parameters(self):
         if self.__modified:
             self.__lcoeff, self.__lintercept = self._compute_log_parameters(
-                    start_coeff=max(0, self._compute_classical_coeff())*2,
-                    start_intercept=max(0, self._compute_classical_intercept())*2,
+                    start_coeff=abs(self._compute_classical_coeff()),
+                    start_intercept=abs(self._compute_classical_intercept()),
                     eps=self.config.epsilon*1e-3, step_fact=0.1)
             self.__modified = False
         return self.__lcoeff, self.__lintercept
