@@ -595,9 +595,9 @@ class Leaf(AbstractReg[Number]):
         while True:
             i += 1
             D_coefficient, D_intercept = deriv(coeff, intercept, x_val, y_val)
-            if i%orthogonal_search == orthogonal_search-2:
+            if i % orthogonal_search == orthogonal_search-2:
                 D_coefficient = 0
-            elif i%orthogonal_search == orthogonal_search-1:
+            elif i % orthogonal_search == orthogonal_search-1:
                 D_intercept = 0
             D = norm(D_coefficient, D_intercept)
             if D < eps or i >= max_iter:
@@ -653,7 +653,8 @@ class Leaf(AbstractReg[Number]):
                 search_list.append({'coefficient': coeff, 'intercept': intercept,
                                     'error': error,
                                     'index': i,
-                                    'final_step': step, 'D': D, 'new_D': new_D, 'D_coeff': D_coefficient, 'D_inter': D_intercept})
+                                    'final_step': step, 'D': D, 'new_D': new_D,
+                                    'D_coeff': D_coefficient, 'D_inter': D_intercept})
         if return_search:
             return pandas.DataFrame(search_list)
         return coeff, intercept
