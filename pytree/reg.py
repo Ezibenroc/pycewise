@@ -546,7 +546,8 @@ class Leaf(AbstractReg[Number]):
         return self.__wcoeff, self.__wintercept
 
     def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12, step_fact=0.8,
-                                max_iter=1000, return_search=False):
+                                max_iter=1000, return_search=False,
+                                orthogonal_search=10):
         '''Return the tuple (intercept, coefficient) of the linear regression where the error function is logarithmic
         (i.e. we use the BIClog and RSSlog functions instead of BIC and RSS).
         Warning: O(Kn) complexity with K large...
@@ -594,6 +595,10 @@ class Leaf(AbstractReg[Number]):
         while True:
             i += 1
             D_coefficient, D_intercept = deriv(coeff, intercept, x_val, y_val)
+            if i%orthogonal_search == orthogonal_search-2:
+                D_coefficient = 0
+            elif i%orthogonal_search == orthogonal_search-1:
+                D_intercept = 0
             D = norm(D_coefficient, D_intercept)
             if D < eps or i >= max_iter:
                 break
