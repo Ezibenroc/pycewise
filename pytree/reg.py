@@ -545,7 +545,7 @@ class Leaf(AbstractReg[Number]):
             self.__modified = False
         return self.__wcoeff, self.__wintercept
 
-    def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12, step_fact=0.8,
+    def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12,
                                 max_iter=1000, return_search=False,
                                 orthogonal_search=10):
         '''Return the tuple (intercept, coefficient) of the linear regression where the error function is logarithmic
@@ -663,7 +663,7 @@ class Leaf(AbstractReg[Number]):
             self.__lcoeff, self.__lintercept = self._compute_log_parameters(
                     start_coeff=abs(self._compute_classical_coeff()),
                     start_intercept=abs(self._compute_classical_intercept()),
-                    eps=1e-3, step_fact=0.1)
+                    eps=1e-3)
             self.__modified = False
         return self.__lcoeff, self.__lintercept
 
