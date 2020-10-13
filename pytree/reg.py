@@ -547,7 +547,7 @@ class Leaf(AbstractReg[Number]):
 
     def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12,
                                 max_iter=1000, return_search=False,
-                                orthogonal_search=10):
+                                orthogonal_search=11):
         '''Return the tuple (intercept, coefficient) of the linear regression where the error function is logarithmic
         (i.e. we use the BIClog and RSSlog functions instead of BIC and RSS).
         Warning: O(Kn) complexity with K large...
