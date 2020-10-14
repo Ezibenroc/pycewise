@@ -547,7 +547,8 @@ class Leaf(AbstractReg[Number]):
 
     def _compute_log_parameters(self, start_coeff=10, start_intercept=10, eps=1e-12,
                                 max_iter=1000, return_search=False,
-                                orthogonal_search=11):
+                                orthogonal_search=11,
+                                forbid_negative_intercept=True, forbid_negative_coefficient=True):
         '''Return the tuple (intercept, coefficient) of the linear regression where the error function is logarithmic
         (i.e. we use the BIClog and RSSlog functions instead of BIC and RSS).
         Warning: O(Kn) complexity with K large...
@@ -556,6 +557,10 @@ class Leaf(AbstractReg[Number]):
         def deriv(coeff, intercept, x, y):
             '''Compute the value of the derivative of RSSlog in the given point (w.r.t. the intercept and the coefficient).
             '''
+            if forbid_negative_intercept and intercept <= 0:
+                raise ValueError('Negative intercept')
+            if forbid_negative_coefficient and coeff <= 0:
+                raise ValueError('Negative coefficient')
             S_intercept = 0
             S_coefficient = 0
             pred = x*coeff + intercept
@@ -568,6 +573,8 @@ class Leaf(AbstractReg[Number]):
 
         def function(coeff, intercept, x, y):
             '''Compute the value of RSSlog in the given point.'''
+            if (forbid_negative_intercept and intercept <= 0) or (forbid_negative_coefficient and coeff <= 0):
+                return float('inf')
             return ((numpy.log(y) - numpy.log(x*coeff+intercept))**2).sum()
 
         def dot(Ax, Ay, Bx, By):
@@ -621,6 +628,7 @@ class Leaf(AbstractReg[Number]):
                 step *= 10
             # Then we do the binary search itself.
             interval = [0, step]
+            last_good_step = 0
             while True:
                 step = (interval[0] + interval[1])/2
                 if step == interval[0] or step == interval[1]:
@@ -635,6 +643,7 @@ class Leaf(AbstractReg[Number]):
                 if any(numpy.isnan(new_Deriv)):
                     interval[1] = step
                     continue
+                last_good_step = step
                 new_D = project_vector(new_Deriv[0], new_Deriv[1], D_coefficient, D_intercept)
                 if abs(new_D) < 1e-50:
                     break
@@ -643,6 +652,9 @@ class Leaf(AbstractReg[Number]):
                 else:
                     interval[1] = step
             # Here we have the distance and the direction, we can compute the next point.
+            step = last_good_step
+            delta_coeff = D_coefficient*step
+            delta_int = D_intercept*step
             coeff -= delta_coeff
             intercept -= delta_int
             new_error = function(coeff, intercept, x_val, y_val)
