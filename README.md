@@ -38,4 +38,4 @@ For additional features, the following packages should be installed (`pip instal
 
 ## Usage
 
-See the notebooks [demo.ipynb](demo.ipynb) and [advanced_features.ipynb](advanced_features.ipynb).
+See the [notebooks](notebooks).
