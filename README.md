@@ -1,6 +1,5 @@
 # Pytree
 
-[![Build Status](https://travis-ci.org/Ezibenroc/pytree.svg?branch=master)](https://travis-ci.org/Ezibenroc/pytree)
 [![Coverage Status](https://coveralls.io/repos/github/Ezibenroc/pytree/badge.svg?branch=master)](https://coveralls.io/github/Ezibenroc/pytree?branch=master)
 
 ## Installation
