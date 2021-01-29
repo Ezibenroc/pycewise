@@ -21,14 +21,19 @@ jobs:
                 python --version
                 pip install --upgrade pip
                 pip --version
-                pip install --upgrade --upgrade-strategy eager twine wheel matplotlib graphviz mock pandas
+                pip install --upgrade --upgrade-strategy eager twine wheel matplotlib graphviz mock pandas coveralls flake8 mypy
                 pip freeze
             - name: Build and test
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                 python setup.py bdist_wheel
                 pip install dist/*.whl
-                python test.py
+                coverage run --source=pytree test.py
                 twine check dist/*
+                flake8 pytree test.py setup.py --max-line-length=120
+                mypy pytree --ignore-missing-imports
+                coveralls --service=gihtub
             - name: Save the build files
               uses: actions/upload-artifact@master
               with:
