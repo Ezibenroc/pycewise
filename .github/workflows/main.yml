@@ -57,3 +57,8 @@ jobs:
                   overwrite: true
                   file_glob: true
                   tag: ${{ github.ref }}
+            - name: Upload the package to Pypi
+              uses: pypa/gh-action-pypi-publish@v1.4.2
+              with:
+                user: __token__
+                password: ${{ secrets.PYPI_API_TOKEN }}
