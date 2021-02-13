@@ -135,7 +135,7 @@ class LeafTest(unittest.TestCase):
             y = [d[1] + random.gauss(0, noise) for d in self.data]
             config = Config(mode=mode, epsilon=1e-6)
             node = Leaf(x, y, config=config)
-            self.assertAlmostEqual(node.coeff,     self.coeff,      delta=0.3)
+            self.assertAlmostEqual(node.coeff,     self.coeff,      delta=0.5)
             self.assertAlmostEqual(node.intercept, self.intercept,  delta=2*(noise+0.001))
             # we add an "outlier" and check that it increases the error significantly
             error = node.error
