@@ -34,7 +34,7 @@ Basic example:
 from pycewise import *
 import pandas
 
-df = pandas.read_csv('test_data/ringrong_loopback.csv').groupby('size').mean().reset_index()
+df = pandas.read_csv('test_data/memcpy_small.csv')
 reg = compute_regression(df['size'], df['duration'], mode='log')
 print(reg)
 ```
