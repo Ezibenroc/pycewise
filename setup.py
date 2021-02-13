@@ -63,9 +63,9 @@ if __name__ == '__main__':
           license='MIT',
           classifiers=[
               'License :: OSI Approved :: MIT License',
-              'Intended Audience :: Developers',
-              'Operating System :: POSIX :: Linux',
-              'Operating System :: MacOS :: MacOS X',
+              'Intended Audience :: Science/Research',
+              'Topic :: Scientific/Engineering',
+              'Operating System :: OS Independent',
               'Programming Language :: Python :: 3.6',
               'Programming Language :: Python :: 3.7',
               'Programming Language :: Python :: 3.8',

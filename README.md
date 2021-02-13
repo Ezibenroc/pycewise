@@ -7,17 +7,7 @@
 ### From a wheel (recommended)
 
 ```bash
-pip install https://github.com/Ezibenroc/pycewise/releases/download/0.0.5/pycewise-0.0.5-py3-none-any.whl
-```
-
-Replace the two occurences of the version number in the URL by the version you wish to install.
-
-### From source
-
-```bash
-git clone https://github.com/Ezibenroc/pycewise.git
-cd pycewise
-python3 setup.py install --user
+pip install pycewise
 ```
 
 ### Optional requirements
@@ -38,4 +28,15 @@ For additional features, the following packages should be installed (`pip instal
 
 ## Usage
 
-See the [notebooks](notebooks).
+Basic example:
+
+```python
+from pycewise import *
+import pandas
+
+df = pandas.read_csv('test_data/ringrong_loopback.csv').groupby('size').mean().reset_index()
+reg = compute_regression(df['size'], df['duration'], mode='log')
+print(reg)
+```
+
+For more advanced usage, see the [notebooks](https://github.com/Ezibenroc/pycewise/tree/master/notebooks).
