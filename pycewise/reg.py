@@ -31,7 +31,7 @@ try:
 except ImportError:
     numpy = None
 else:
-    numpy = np  # for this import, mypy complains, so I have to use the 'else' trick (https://github.com/python/mypy/issues/1297)
+    numpy = np  # for this import, mypy complains (see https://github.com/python/mypy/issues/1297)
 
 
 Number = TypeVar('Number', float, Fraction, Decimal)
@@ -558,6 +558,7 @@ class Leaf(AbstractReg[Number]):
         '''
         if numpy is None:
             raise ImportError('No module named "numpy".')
+
         def deriv(coeff, intercept, x, y):
             '''Compute the value of the derivative of RSSlog in the given point (w.r.t. the intercept and the coefficient).
             '''
