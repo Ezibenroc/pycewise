@@ -35,20 +35,20 @@ def write_version(filename, version_dict):
 
 if __name__ == '__main__':
     try:
-        write_version('pytree/version.py', {
+        write_version('pycewise/version.py', {
                 '__version__': VERSION,
                 '__git_version__': git_version(),
             })
     except CommandError as e:
         if sys.argv[0] != '-c':
             sys.exit(e)
-    setup(name='pytree',
+    setup(name='pycewise',
           version=VERSION,
           description='Simple implementation of model trees.',
           author='Tom Cornebize',
           author_email='tom.cornebize@gmail.com',
-          packages=['pytree'],
-          url='https://github.com/Ezibenroc/pytree',
+          packages=['pycewise'],
+          url='https://github.com/Ezibenroc/pycewise',
           license='MIT',
           classifiers=[
               'License :: OSI Approved :: MIT License',

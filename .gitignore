@@ -3,7 +3,7 @@ __pycache__
 MANIFEST
 dist
 build
-pytree/version.py
+pycewise/version.py
 Pipfile.lock
 .mypy_cache
-pytree.egg-info
+pycewise.egg-info

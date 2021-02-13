@@ -13,7 +13,7 @@ import matplotlib as mpl
 if os.environ.get('DISPLAY', '') == '':
     print('No display found. Using non-interactive Agg backend.')
     mpl.use('Agg')
-from pytree import Node, Leaf, IncrementalStat, compute_regression, Config, FlatRegression # noqa: 402
+from pycewise import Node, Leaf, IncrementalStat, compute_regression, Config, FlatRegression # noqa: 402
 
 DEFAULT_MODE = 'BIC'
 

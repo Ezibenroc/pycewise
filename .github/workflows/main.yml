@@ -1,4 +1,4 @@
-name: Pytree
+name: Pycewise
 
 on: [push]
 
@@ -29,10 +29,10 @@ jobs:
               run: |
                 python setup.py bdist_wheel
                 pip install dist/*.whl
-                coverage run --source=pytree test.py
+                coverage run --source=pycewise test.py
                 twine check dist/*
-                flake8 pytree test.py setup.py --max-line-length=120
-                mypy pytree --ignore-missing-imports
+                flake8 pycewise test.py setup.py --max-line-length=120
+                mypy pycewise --ignore-missing-imports
                 coveralls debug --service=gihtub
             - name: Save the build files
               uses: actions/upload-artifact@master
