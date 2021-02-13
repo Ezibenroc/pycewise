@@ -26,6 +26,7 @@ The main functionnality of this package (computing a segmented linear regression
 
 For additional features, the following packages should be installed (`pip install <package_name>`):
 
+- numpy
 - statsmodels
 - jupyter
 - matplotlib

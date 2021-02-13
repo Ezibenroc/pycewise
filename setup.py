@@ -33,6 +33,14 @@ def write_version(filename, version_dict):
             f.write('%s = "%s"\n' % (version_name, version_dict[version_name]))
 
 
+try:
+    with open('README.md') as f:
+        long_description = ''.join(f.readlines())
+except (IOError, ImportError, RuntimeError):
+    print('Could not generate long description.')
+    long_description = ''
+
+
 if __name__ == '__main__':
     try:
         write_version('pycewise/version.py', {
@@ -44,11 +52,14 @@ if __name__ == '__main__':
             sys.exit(e)
     setup(name='pycewise',
           version=VERSION,
-          description='Simple implementation of model trees.',
+          description='Piecewise linear regressions, based on model trees.',
+          long_description_content_type="text/markdown",
+          long_description=long_description,
           author='Tom Cornebize',
           author_email='tom.cornebize@gmail.com',
           packages=['pycewise'],
           url='https://github.com/Ezibenroc/pycewise',
+          install_requires=[],
           license='MIT',
           classifiers=[
               'License :: OSI Approved :: MIT License',
@@ -56,5 +67,7 @@ if __name__ == '__main__':
               'Operating System :: POSIX :: Linux',
               'Operating System :: MacOS :: MacOS X',
               'Programming Language :: Python :: 3.6',
+              'Programming Language :: Python :: 3.7',
+              'Programming Language :: Python :: 3.8',
           ],
           )
