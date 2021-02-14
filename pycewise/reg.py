@@ -679,8 +679,8 @@ class Leaf(AbstractReg[Number]):
     def compute_log_parameters(self):
         if self.__modified:
             self.__lcoeff, self.__lintercept = self._compute_log_parameters(
-                    start_coeff=abs(self._compute_classical_coeff()),
-                    start_intercept=abs(self._compute_classical_intercept()),
+                    start_coeff=max(1e-300, abs(self._compute_classical_coeff())),
+                    start_intercept=max(1e-300, abs(self._compute_classical_intercept())),
                     eps=1e-3)
             self.__modified = False
         return self.__lcoeff, self.__lintercept
