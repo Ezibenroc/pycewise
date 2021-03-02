@@ -1187,7 +1187,7 @@ def compute_regression(x, y=None, *, breakpoints=None, mode='BIC', epsilon=None)
     else:
         epsilon = min([abs(yy) for yy in y])
     config = Config(mode, epsilon)
-    if breakpoints:
+    if breakpoints is not None:
         return FlatRegression(x, y, config=config, breakpoints=breakpoints)
     reg = Node(Leaf(x, y, config=config), Leaf(
         [], [], config=config)).compute_best_fit()
