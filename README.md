@@ -1,16 +1,12 @@
 # Pycewise
 
-[![Coverage Status](https://coveralls.io/repos/github/Ezibenroc/pycewise/badge.svg?branch=master)](https://coveralls.io/github/Ezibenroc/pycewise?branch=master)
-
 ## Installation
-
-### From a wheel (recommended)
 
 ```bash
 pip install pycewise
 ```
 
-### Optional requirements
+### Optional installation requirements
 
 The main functionnality of this package (computing a segmented linear regression) can be used without any third-party code.
 
