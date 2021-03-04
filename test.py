@@ -474,7 +474,6 @@ class FlatRegressionTest(unittest.TestCase):
 
     def test_multiple_splits_simplify(self):
         self.generic_multiplesplits_simplify(float, 1)
-        self.generic_multiplesplits_simplify(float, 10)
 
     def test_multiple_splits_decimal_simplify(self):
         self.generic_multiplesplits_simplify(Decimal, 1)
